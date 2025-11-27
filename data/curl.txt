@@ -1,0 +1,19 @@
+curl -X 'PATCH' \
+  'https://e10379b3050f91760fb5d051.daruma.space/api/v1/crews/675160af-e55e-4257-9c68-3e88aca3230a' \
+  -H 'Content-Type: application/json' \
+  -H 'Authorization: Bearer shr_1365_JCFQjzsAYYcVbUri9tUaycZZJBbvzugZ' \
+  -d '{
+  "emp_status": "On Leave",
+  "custom_fields": [
+    {
+        "value": "TEST",
+        "template_id": "257f22f7-cb05-49d4-a8ac-0dd8c7610e2a"
+    }
+  ]
+}'
+
+
+-- maternity leaves
+curl -X 'GET' \
+  'https://e10379b3050f91760fb5d051.daruma.space/api/v1/crews/675160af-e55e-4257-9c68-3e88aca3230a/maternity_childcare_leaves?page=1&per_page=10' \
+  -H 'accept: application/json'

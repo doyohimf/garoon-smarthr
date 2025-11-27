@@ -1,0 +1,20 @@
+export const NATIONALITY_CODE = {
+  'Japan': '392',
+  'China': '156',
+  'Philippines': '608',
+  'Vietnam': '704',
+  'Indonesia': '360',
+  'Thailand': '764',
+  'South Korea': '410',
+  'North Korea': '408',
+  'Myanmar': '104',
+  'Nepal': '524',
+  'India': '356',
+  'Sri Lanka': '144',
+  'United States': '840',
+  'United Kingdom': '826',
+  'Canada': '124',
+  'Australia': '036',
+  'Brazil': '076',
+  'New Zealand': '554'
+};

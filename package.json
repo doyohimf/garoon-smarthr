@@ -1,0 +1,44 @@
+{
+  "name": "garoon-smarthr-etl",
+  "version": "1.0.0",
+  "description": "ETL pipeline from Garoon to SmartHR via BigQuery",
+  "type": "module",
+  "main": "src/index.js",
+  "scripts": {
+    "start": "node src/server.local.js",
+    "test": "node src/test.local.js",
+    "test:parser": "node src/tests/allowance-details-parser.test.js",
+    "etl:1": "node src/etl-1.js",
+    "etl:2": "node src/etl-2.js",
+    "etl:3": "node src/etl-3.js",
+    "etl:4": "node src/etl-4.js",
+    "etl:5": "node src/etl-5.js",
+    "etl:6": "node src/etl-6.js",
+    "etl:7": "node src/etl-7.js",
+    "deploy": "gcloud functions deploy garoonToSmartHRETL --gen2 --runtime=nodejs20 --region=asia-northeast1 --source=. --entry-point=garoonToSmartHRETL --trigger-http --allow-unauthenticated --memory=512MB --timeout=540s --env-vars-file=.env.yaml"
+  },
+  "engines": {
+    "node": ">=20.0.0"
+  },
+  "dependencies": {
+    "@google-cloud/bigquery": "^8.1.1",
+    "@google-cloud/storage": "^7.7.0",
+    "dotenv": "^16.4.5",
+    "express": "^4.18.2",
+    "kuroshiro": "^1.2.0",
+    "kuroshiro-analyzer-kuromoji": "^1.1.0",
+    "nodemailer": "^7.0.10"
+  },
+  "keywords": [
+    "etl",
+    "garoon",
+    "smarthr",
+    "bigquery",
+    "gcp"
+  ],
+  "author": "",
+  "license": "ISC",
+  "devDependencies": {
+    "cross-env": "^10.1.0"
+  }
+}

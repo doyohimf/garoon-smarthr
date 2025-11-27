@@ -1,0 +1,10 @@
+node_modules/
+.env
+data/
+*.log
+.DS_Store
+*.jsonl
+
+# Keep error directory structure but ignore log files
+!data/errors/
+data/errors/*.log
