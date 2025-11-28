@@ -35,7 +35,7 @@ export class ETL1Orchestrator {
       logger.info(`[Workflow ${WORKFLOW_ID}] Starting ETL - Running indefinitely`);
 
       while (true) {
-        const requests = await this.garoonService.fetchRequests(500, 1032);
+        const requests = await this.garoonService.fetchRequests(500, 1032, 'workflow_1');
         
         if (!requests || requests.length === 0) {
           logger.info('No requests found, waiting 30 seconds...');
@@ -46,19 +46,19 @@ export class ETL1Orchestrator {
         logger.info(`Fetched ${requests.length} requests from Garoon`);
         
         // TESTING: Filter to only process ID 840383 - REMOVE IN DEPLOYMENT
-        const filteredRequests = requests.filter(req => req.id === '840383');
-        if (filteredRequests.length > 0) {
-          logger.info(`🧪 TESTING MODE: Processing only ID 840383`);
-        } else {
-          logger.info(`🧪 TESTING MODE: ID 840383 not found in current batch, skipping all requests`);
-          stats.skippedRequests += requests.length;
-          await new Promise(resolve => setTimeout(resolve, 5000));
-          continue;
-        }
+        // const filteredRequests = requests.filter(req => req.id === '840383');
+        // if (filteredRequests.length > 0) {
+        //   logger.info(`🧪 TESTING MODE: Processing only ID 840383`);
+        // } else {
+        //   logger.info(`🧪 TESTING MODE: ID 840383 not found in current batch, skipping all requests`);
+        //   stats.skippedRequests += requests.length;
+        //   await new Promise(resolve => setTimeout(resolve, 5000));
+        //   continue;
+        // }
         
-        stats.totalRequests += filteredRequests.length;
+        stats.totalRequests += requests.length;
 
-        for (const request of filteredRequests) {
+        for (const request of requests) {
         try {
           const requestId = request.id;
           const requestName = request.name;
@@ -86,8 +86,6 @@ export class ETL1Orchestrator {
           }
 
           logger.info(`✅ Found processable request: ${requestName} → ${processorType}`);
-
-          await PauseUtil.waitForEnter(`Workflow 1 match detected for: ${requestName}\nPress Enter to proceed with SmartHR transfer...`);
 
           const processResult = await this.processRequest(request, processorType, requestId);
           

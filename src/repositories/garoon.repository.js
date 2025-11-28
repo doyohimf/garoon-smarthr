@@ -18,6 +18,15 @@ export class GaroonRepository {
       rangeEndApprovedAt: params.end || '',
       form: params.form_id
     });
+
+    logger.debug('Garoon API request parameters', {
+      start: params.start,
+      end: params.end,
+      form_id: params.form_id,
+      limit: params.limit,
+      urlParams: urlParams.toString()
+    });
+
     try {
       const response = await fetch(`${this.apiEndpoint}?${urlParams.toString()}`, {
         method: 'GET',

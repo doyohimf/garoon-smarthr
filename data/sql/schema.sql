@@ -61,3 +61,18 @@ CREATE TABLE IF NOT EXISTS data-integration-474311.saasdb.garoon_requests (
   etl_extracted_date TIMESTAMP
 ) CLUSTER BY request_id, status;
 
+-- allowances_workflow table (WF#5)
+CREATE TABLE IF NOT EXISTS data-integration-474311.saasdb.allowances_workflow (
+  employee_code STRING NOT NULL,
+  change_date DATE NOT NULL,
+  type STRING NOT NULL,
+  amount NUMERIC NOT NULL,
+  date_registered TIMESTAMP NOT NULL,
+  for_process INTEGER NOT NULL,
+  custom_fields STRING,
+  inserted_at TIMESTAMP NOT NULL,
+  transmitted_at TIMESTAMP,
+  request_id STRING,
+  request_number STRING
+) CLUSTER BY employee_code, change_date;
+

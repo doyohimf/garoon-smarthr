@@ -7,6 +7,7 @@ import { CHANGE_CUSTOM_FIELDS, CHANGE_KEY_MAP } from '../config/unified_change.c
 import { garoonFields } from '../config/garoon.config.js';
 import { SmartHRRepository } from '../repositories/smarthr.repository.js';
 import { smarthr_custom_fields } from '../config/smarthr.config.js';
+import { EmailService } from '../services/email.service.js';
 
 export class UnifiedEmployeeChangeProcessor {
   constructor() {
@@ -14,6 +15,7 @@ export class UnifiedEmployeeChangeProcessor {
     this.smartHRService = new SmartHRExtendedService();
     this.smartHRBaseService = new SmartHRService();
     this.retryUtil = new RetryUtil();
+    this.emailService = new EmailService();
   }
 
   async process(garoonRequest) {
@@ -63,7 +65,21 @@ export class UnifiedEmployeeChangeProcessor {
       if (positionId) {
         positions = [positionId];
       } else {
-        position = parsedDetails.newPosition;
+        // Position does not exist - send email notification and skip processing
+        logger.warn(`Position not found in SmartHR: ${parsedDetails.newPosition} for employee: ${employee_code}`);
+        await this.emailService.sendErrorNotification({
+          requestId: request.request?.request_id || 'Unknown',
+          requestName: 'Employee Change Processing',
+          processorType: 'UnifiedEmployeeChangeProcessor',
+          errorMessage: `Position "${parsedDetails.newPosition}" does not exist in SmartHR. Please create the position before processing this change request.`,
+          additionalData: {
+            employee_code,
+            position_requested: parsedDetails.newPosition,
+            effective_date: effectiveDate,
+            action: 'SKIPPED - Position not found'
+          }
+        });
+        throw new Error(`Position "${parsedDetails.newPosition}" does not exist in SmartHR. Processing skipped.`);
       }
     }
     

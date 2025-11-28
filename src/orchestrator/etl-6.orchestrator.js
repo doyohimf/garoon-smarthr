@@ -33,7 +33,7 @@ export class ETL6Orchestrator {
       logger.info(`[Workflow ${WORKFLOW_ID}] Starting ETL - Running indefinitely`);
 
       while (true) {
-        const requests = await this.garoonService.fetchRequests(500, 1236);
+        const requests = await this.garoonService.fetchRequests(500, 1236, 'workflow_6');
         
         if (!requests || requests.length === 0) {
           logger.info('No requests found, waiting 30 seconds...');
@@ -62,8 +62,6 @@ export class ETL6Orchestrator {
           const processorType = 'RESIGNATION';
 
           logger.info(`✅ Found processable request: ${requestName} → ${processorType}`);
-
-          await PauseUtil.waitForEnter(`Workflow 6 match detected for: ${requestName}\nPress Enter to proceed with SmartHR transfer...`);
 
           const processResult = await this.processRequest(request, processorType, requestId);
           
