@@ -233,6 +233,27 @@ export class SmartHRRepository {
     }
   }
 
+  async getPaymentPeriods(perPage = 50) {
+    try {
+      const response = await fetch(`${this.baseUrl}/payment_periods?per_page=${perPage}`, {
+        method: 'GET',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${this.accessToken}`
+        }
+      });
+
+      if (!response.ok) {
+        throw new Error(`SmartHR API error: ${response.status} ${response.statusText}`);
+      }
+
+      return await response.json();
+    } catch (error) {
+      logger.error('Error fetching payment periods', error);
+      throw error;
+    }
+  }
+
   async getAllResignedEmployees() {
     try {
       logger.info('Fetching all resigned employees from SmartHR');

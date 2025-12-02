@@ -6,11 +6,13 @@ import { RequestRouter } from '../routers/request.router.js';
 import { ProcessorFactory } from '../processors/processor.factory.js';
 import { GaroonToBigQueryTransformer } from '../transformers/garoon-bq.transformer.js';
 import { PauseUtil } from '../utils/pause.util.js';
+import { BaseOrchestrator } from './base.orchestrator.js';
 
 const WORKFLOW_ID = 3;
 
-export class ETL3Orchestrator {
+export class ETL3Orchestrator extends BaseOrchestrator {
   constructor() {
+    super();
     this.garoonService = new GaroonService();
     this.bigQueryService = new BigQueryService();
     this.errorLogger = new ErrorLogger();
@@ -30,7 +32,7 @@ export class ETL3Orchestrator {
     };
 
     try {
-      logger.info(`[Workflow ${WORKFLOW_ID}] Starting ETL - Running indefinitely`);
+      logger.info(`[Workflow ${WORKFLOW_ID}] Starting ETL - Running with pause mechanism (max ${this.maxPauses} pauses)`);
 
       while (true) {
         const requests = await this.garoonService.fetchRequests(500, 1038, 'workflow_3');
@@ -44,19 +46,24 @@ export class ETL3Orchestrator {
         logger.info(`Fetched ${requests.length} requests from Garoon`);
         
         // TESTING: Filter to only process ID 840075 - REMOVE IN DEPLOYMENT
-        // const filteredRequests = requests.filter(req => req.id === "840075");
-        // if (filteredRequests.length > 0) {
-        //   logger.info(`🧪 TESTING MODE: Processing only ID 840075`);
-        // } else {
-        //   logger.info(`🧪 TESTING MODE: ID 840075 not found in current batch, skipping all requests`);
-        //   stats.skippedRequests += requests.length;
-        //   await new Promise(resolve => setTimeout(resolve, 5000));
-        //   continue;
-        // }
+        const filteredRequests = requests.filter(req => req.id === "840075");
+        if (filteredRequests.length > 0) {
+          logger.info(`🧪 TESTING MODE: Processing only ID 840075`);
+        } else {
+          logger.info(`🧪 TESTING MODE: ID 840075 not found in current batch, skipping all requests`);
+          stats.skippedRequests += requests.length;
+          await new Promise(resolve => setTimeout(resolve, 5000));
+          continue;
+        }
         
-        stats.totalRequests += requests.length;
+        //stats.totalRequests += requests.length;
+        stats.totalRequests += filteredRequests.length;
+        let batchProcessedCount = 0;
+        let batchSkippedCount = 0;
+        let batchErrorCount = 0;
 
-        for (const request of requests) {
+        //for (const request of requests) {
+        for (const request of filteredRequests) {
         try {
           const requestId = request.id;
           const requestName = request.name;
@@ -68,6 +75,7 @@ export class ETL3Orchestrator {
           if (exists) {
             logger.debug(`⏭️  Skipping existing request: ${requestId}`);
             stats.skippedRequests++;
+            batchSkippedCount++;
             continue;
           }
 
@@ -89,9 +97,11 @@ export class ETL3Orchestrator {
               etl_extracted_date: new Date().toISOString()
             });
             stats.processedRequests++;
+            batchProcessedCount++;
           } else {
             logger.error(`❌ Failed to process request ${requestId}: ${processResult.error}`);
             stats.erroredRequests++;
+            batchErrorCount++;
           }
 
         } catch (error) {
@@ -109,12 +119,26 @@ export class ETL3Orchestrator {
           );
           
           stats.erroredRequests++;
+          batchErrorCount++;
         }
       }
 
-        logger.info(`[Workflow ${WORKFLOW_ID}] Batch completed`, stats);
-        await new Promise(resolve => setTimeout(resolve, 5000));
+        const totalBatchProcessed = this.logBatchCompletion(
+          WORKFLOW_ID, 
+          batchProcessedCount, 
+          batchSkippedCount, 
+          batchErrorCount, 
+          requests.length
+        );
+
+        // Handle pause logic using base class method
+        const shouldExit = await this.handlePauseLogic(totalBatchProcessed, requests.length, WORKFLOW_ID);
+        if (shouldExit) {
+          break;
+        }
       }
+
+      this.logFinalCompletion(WORKFLOW_ID, stats);
 
     } catch (error) {
       logger.error('ETL execution failed', error);
