@@ -163,7 +163,38 @@ export class SmartHRService {
     }
   }
 
+  async getPaymentPeriods(perPage = 50) {
+    try {
+      return await this.repository.getPaymentPeriods(perPage);
+    } catch (error) {
+      logger.error('Error fetching payment periods', error);
+      throw error;
+    }
+  }
 
+  async findPaymentPeriodId(salaryClassification) {
+    try {
+      if (!salaryClassification) {
+        return null;
+      }
+
+      const paymentPeriods = await this.getPaymentPeriods(500);
+      const matchedPeriod = paymentPeriods.find(period => 
+        period.name && period.name.trim() === salaryClassification.trim()
+      );
+
+      if (matchedPeriod) {
+        logger.info(`Found payment period: ${salaryClassification} (ID: ${matchedPeriod.id})`);
+        return matchedPeriod.id;
+      }
+
+      logger.warn(`Payment period not found: ${salaryClassification}`);
+      return null;
+    } catch (error) {
+      logger.error(`Error finding payment period: ${salaryClassification}`, error);
+      throw error;
+    }
+  }
 
   sanitizeDepartmentName(name) {
     // Replace special characters (except dash and parenthesis) with dash

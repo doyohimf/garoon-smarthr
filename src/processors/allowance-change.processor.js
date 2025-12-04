@@ -8,6 +8,7 @@ import { FormatterUtil } from '../utils/formatter.util.js';
 import { garoonFields } from '../config/garoon.config.js';
 import { AllowanceWorkflowRepository } from '../repositories/allowance-workflow.repository.js';
 import { DateUtil } from '../utils/date.util.js';
+import { smarthr_custom_fields } from '../config/smarthr.config.js';
 
 export class EmployeeAllowanceChangeProcessor {
   constructor() {
@@ -51,14 +52,14 @@ export class EmployeeAllowanceChangeProcessor {
         return { success: false, error: 'Failed to check for duplicates' };
       }
 
-      // Check if change_date is today
-      let isChangeDateToday = false;
+      // Check if change_date is today or within the past 7 days
+      let isChangeDateRecent = false;
       try {
-        isChangeDateToday = DateUtil.isToday(allowanceData.changeDate);
-        logger.info(`Change date "${allowanceData.changeDate}" is today? ${isChangeDateToday}`);
+        isChangeDateRecent = DateUtil.isWithinPastDays(allowanceData.changeDate, 14);
+        logger.info(`Change date "${allowanceData.changeDate}" is within past 14 days? ${isChangeDateRecent}`);
       } catch (dateError) {
-        logger.error(`Error checking if date is today: ${allowanceData.changeDate}`, dateError);
-        isChangeDateToday = false;
+        logger.error(`Error checking if date is within past 14 days: ${allowanceData.changeDate}`, dateError);
+        isChangeDateRecent = false;
       }
 
       // Store in allowances_workflow table
@@ -76,10 +77,10 @@ export class EmployeeAllowanceChangeProcessor {
         logger.error(`Error storing to allowances_workflow: ${allowanceData.employeeCode}`, dbError);
         return { success: false, error: 'Failed to store workflow data' };
       }
-
-      // If change_date equals today, transmit to SmartHR
-      if (isChangeDateToday) {
-        logger.info(`✅ Change date is today - transmitting to SmartHR for ${allowanceData.employeeCode}`);
+      console.log(isChangeDateRecent);
+      // If change_date is today or within the past 7 days, transmit to SmartHR
+      if (isChangeDateRecent) {
+        logger.info(`✅ Change date is recent - transmitting to SmartHR for ${allowanceData.employeeCode}`);
         
         const result = await this.retryUtil.executeWithRetry(
           async () => await this.smartHRExtendedService.updateEmployeeAllowances(allowanceData),
@@ -90,7 +91,7 @@ export class EmployeeAllowanceChangeProcessor {
         logger.info(`✓ Allowance change completed: ${allowanceData.employeeCode}`);
         return { success: true, result, transmitted: true };
       } else {
-        logger.info(`⏸️  Change date is not today - data stored, awaiting processing date. Employee: ${allowanceData.employeeCode}`);
+        logger.info(`⏸️  Change date is not recent - data stored, awaiting processing date. Employee: ${allowanceData.employeeCode}`);
         return { success: true, transmitted: false, message: 'Data stored, awaiting processing date' };
       }
 
@@ -136,8 +137,13 @@ export class EmployeeAllowanceChangeProcessor {
 
     const cfields = {};
     cfields[ALLOWANCE_CUSTOM_KEY_MAP.allowanceName] = allowanceName;
+    cfields[smarthr_custom_fields.position_allowance] = position_allowance;
+    cfields[smarthr_custom_fields.managers_allowance] = managers_allowance;
+    cfields[smarthr_custom_fields.special_allowance] = special_allowace;
+    cfields[smarthr_custom_fields.relocation_allowance] = relocation_allowance;
+    cfields[smarthr_custom_fields.vehicle_allowance] = vehicle_allowance;
     cfields[ALLOWANCE_CUSTOM_KEY_MAP.changeDate] = changeDate;
-    cfields[ALLOWANCE_CUSTOM_KEY_MAP.changeAmount] = changeAmount;
+    //cfields[ALLOWANCE_CUSTOM_KEY_MAP.changeAmount] = changeAmount;
     cfields[ALLOWANCE_CUSTOM_KEY_MAP.changeDetails] = details;
 
     const customFieldTemplates = await this.smartHRRepository.getCustomFieldTemplates();

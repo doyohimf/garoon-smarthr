@@ -14,7 +14,7 @@ export class GaroonRepository {
       limit: params.limit || 1,
       offset: params.offset || 0,
       status: 'COMPLETED',
-      rangeStartApprovedAt: params.start || '',
+      rangeStartApprovedAt: '2025-11-01T00:00:00.000Z',//params.start || '',
       rangeEndApprovedAt: params.end || '',
       form: params.form_id
     });

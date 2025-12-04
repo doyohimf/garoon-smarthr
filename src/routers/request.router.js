@@ -1,5 +1,5 @@
 import { logger } from '../utils/logger.util.js';
-import { REQUEST_TYPE_MAP, getProcessorType, getProcessorDescription } from '../config/routing.config.js';
+import { REQUEST_TYPE_MAP, getProcessorDescription } from '../config/routing.config.js';
 
 /**
  * Routes Garoon requests to appropriate processors based on request name
@@ -24,15 +24,30 @@ export class RequestRouter {
 
     logger.info(`Routing request:  ${garoonRequest.number}`); //|| ${requestName}`);
 
-    const processorType = getProcessorType(requestName);
-
-    if (processorType) {
-      logger.info(`🧩 Matched processor: ${processorType} - ${getProcessorDescription(processorType)}`);
-    } else {
-      logger.debug(`Could not determine processor type for: ${requestName}`);
+    // Search through the routing map to find a matching processor
+    for (const [type, config] of Object.entries(this.routingMap)) {
+      const keywords = config.keywords || [];
+      const excludeKeywords = config.excludeKeywords || [];
+      
+      // Check if request name contains any required keywords
+      const hasRequiredKeyword = keywords.some(keyword => 
+        requestName.toLowerCase().includes(keyword.toLowerCase())
+      );
+      
+      // Check if request name contains any excluded keywords
+      const hasExcludedKeyword = excludeKeywords.some(keyword => 
+        requestName.toLowerCase().includes(keyword.toLowerCase())
+      );
+      
+      if (hasRequiredKeyword && !hasExcludedKeyword) {
+        const processorType = config.processor;
+        logger.info(`🧩 Matched processor: ${processorType} - ${getProcessorDescription(processorType)}`);
+        return processorType;
+      }
     }
 
-    return processorType;
+    logger.debug(`Could not determine processor type for: ${requestName}`);
+    return null;
   }
 
   /**

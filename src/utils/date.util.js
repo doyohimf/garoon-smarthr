@@ -82,4 +82,111 @@ export class DateUtil {
     const day = String(today.getDate()).padStart(2, '0');
     return `${year}-${month}-${day}`;
   }
+
+  /**
+   * Calculate the difference in days between two dates
+   * @param {Date|string} startDate - The start date
+   * @param {Date|string} endDate - The end date (defaults to current date)
+   * @returns {number} Number of days difference
+   */
+  static calculateDaysDifference(startDate, endDate = new Date()) {
+    const start = new Date(startDate);
+    const end = new Date(endDate);
+    
+    // Calculate the time difference in milliseconds
+    const timeDifference = end.getTime() - start.getTime();
+    
+    // Convert to days (use floor for more accurate same-day detection)
+    const daysDifference = Math.floor(timeDifference / (1000 * 3600 * 24));
+    
+    logger.debug('Calculated days difference', {
+      startDate: start.toISOString(),
+      endDate: end.toISOString(),
+      timeDifferenceMs: timeDifference,
+      daysDifference
+    });
+    
+    return daysDifference;
+  }
+
+  /**
+   * Parse Japanese era date string to Gregorian date
+   * @param {string} dateString - Date string in Japanese era format (e.g., "令和5年12月2日")
+   * @returns {string} Date in YYYY-MM-DD format
+   */
+  static parseJapaneseEraDate(dateString) {
+    if (!dateString) return null;
+
+    const trimmed = dateString.trim();
+
+    // Match patterns like "令和5年12月2日"
+    const match = trimmed.match(/^(.+?)(\d+)年(\d+)月(\d+)日$/);
+    if (!match) {
+      logger.warn(`DateUtil.parseJapaneseEraDate: Unable to parse "${dateString}"`);
+      return null;
+    }
+
+    const era = match[1];
+    const eraYear = parseInt(match[2]);
+    const month = parseInt(match[3]);
+    const day = parseInt(match[4]);
+
+    let gregorianYear;
+
+    switch (era) {
+      case '令和':
+        gregorianYear = 2019 + eraYear - 1;
+        break;
+      case '平成':
+        gregorianYear = 1989 + eraYear - 1;
+        break;
+      case '昭和':
+        gregorianYear = 1926 + eraYear - 1;
+        break;
+      case '大正':
+        gregorianYear = 1912 + eraYear - 1;
+        break;
+      case '明治':
+        gregorianYear = 1868 + eraYear - 1;
+        break;
+      default:
+        logger.warn(`DateUtil.parseJapaneseEraDate: Unknown era "${era}"`);
+        return null;
+    }
+
+    // Validate the date
+    const date = new Date(gregorianYear, month - 1, day);
+    if (date.getFullYear() !== gregorianYear || date.getMonth() !== month - 1 || date.getDate() !== day) {
+      logger.warn(`DateUtil.parseJapaneseEraDate: Invalid date "${dateString}"`);
+      return null;
+    }
+
+    return `${gregorianYear}-${String(month).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
+  }
+
+  /**
+   * Check if a date is within the past N days (including today)
+   * @param {string} dateString - The date to check
+   * @param {number} days - Number of days in the past (including today)
+   * @returns {boolean} True if the date is within the past N days
+   */
+  static isWithinPastDays(dateString, days) {
+    if (!dateString || days < 0) {
+      logger.warn('DateUtil.isWithinPastDays: Invalid input');
+      return false;
+    }
+
+    try {
+      const inputDate = DateUtil.parseDate(dateString);
+      const today = DateUtil.getTodayDate();
+      const daysDifference = DateUtil.calculateDaysDifference(inputDate, today);
+
+      const result = daysDifference >= 0 && daysDifference <= days;
+      logger.debug(`DateUtil.isWithinPastDays: "${dateString}" within past ${days} days? ${result} (diff: ${daysDifference})`);
+      return result;
+    } catch (error) {
+      logger.error(`DateUtil.isWithinPastDays: Error checking date "${dateString}"`, error);
+      return false;
+    }
+  }
 }
