@@ -99,4 +99,60 @@ export class BigQueryService {
       return false;
     }
   }
+
+  async getPendingEmpChanges() {
+    try {
+      if (!this.repository.bigquery) {
+        logger.debug('BigQuery getPendingEmpChanges skipped in development mode');
+        return [];
+      }
+
+      const today = new Date().toISOString().split('T')[0];
+      const query = `
+        SELECT employee_code, change_date, type, position, classification, 
+               new_salary, position_allowance, custom_fields, request_id, request_number
+        FROM \`${this.repository.bigquery.projectId}.${this.repository.datasetId}.empchanges_workflow\`
+        WHERE change_date = @today AND for_process = 1
+        ORDER BY inserted_at ASC
+      `;
+      
+      const rows = await this.repository.query(query, { today });
+      logger.info(`Found ${rows.length} pending employee changes for today`);
+      return rows;
+    } catch (error) {
+      logger.error('Error fetching pending employee changes', error);
+      return [];
+    }
+  }
+
+  async insertEmpChange(empChange) {
+    try {
+      await this.repository.insert('empchanges_workflow', [empChange]);
+      logger.info(`Employee change inserted: ${empChange.employee_code} - ${empChange.change_date}`);
+    } catch (error) {
+      logger.error('Error inserting employee change to BigQuery', error);
+      throw error;
+    }
+  }
+
+  async markEmpChangeProcessed(employeeCode, changeDate) {
+    try {
+      if (!this.repository.bigquery) {
+        logger.debug(`BigQuery markEmpChangeProcessed skipped in development mode: ${employeeCode}`);
+        return;
+      }
+
+      const query = `
+        UPDATE \`${this.repository.bigquery.projectId}.${this.repository.datasetId}.empchanges_workflow\`
+        SET for_process = 0, transmitted_at = CURRENT_TIMESTAMP()
+        WHERE employee_code = @employeeCode AND change_date = @changeDate
+      `;
+      
+      await this.repository.query(query, { employeeCode, changeDate });
+      logger.info(`Employee change marked as processed: ${employeeCode} - ${changeDate}`);
+    } catch (error) {
+      logger.error(`Error marking employee change as processed for ${employeeCode}`, error);
+      throw error;
+    }
+  }
 }
