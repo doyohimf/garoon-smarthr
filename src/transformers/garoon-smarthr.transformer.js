@@ -165,12 +165,22 @@ export class GaroonToSmartHRTransformer {
     const work_hours_break_time = this.findGaroonData(garoonRequest, garoonFields.work_hours_break_time);
     const work_type = this.findGaroonData(garoonRequest, garoonFields.work_type);
     const holiday = this.findGaroonData(garoonRequest, garoonFields.holiday);
-    const fixed_monthly_overtime_hours = this.findGaroonData(garoonRequest, garoonFields.fixed_monthly_overtime_hours);
+    let fixed_monthly_overtime_hours = this.findGaroonData(garoonRequest, garoonFields.fixed_monthly_overtime_hours);
+    
+    // Parse fixed_monthly_overtime_hours to extract numeric value
+    if (fixed_monthly_overtime_hours && typeof fixed_monthly_overtime_hours === 'string') {
+      const match = fixed_monthly_overtime_hours.match(/(\d+)\s*hours?\/month/i);
+      if (match) {
+        fixed_monthly_overtime_hours = parseInt(match[1], 10);
+      }
+    }
+    console.log(fixed_monthly_overtime_hours);
     const annual_salary = this.findGaroonData(garoonRequest, garoonFields.annual_salary);
     const monthly_salary = this.findGaroonData(garoonRequest, garoonFields.monthly_salary_amount);
     const fixed_monthly_salary = this.findGaroonData(garoonRequest, garoonFields.fixed_monthly_salary);
     const fixed_premium_wage = this.findGaroonData(garoonRequest, garoonFields.fixed_premium_wage);
     let salary_classification = this.findGaroonData(garoonRequest, garoonFields.salary_classification).trim();
+    let salary_classification_name = salary_classification;
     
     // Validate salary_classification against SmartHR payment_periods 
     if (salary_classification) {
@@ -276,8 +286,8 @@ export class GaroonToSmartHRTransformer {
     cfields[smarthr_custom_fields.probation_period_start] = start_trial_period;
     cfields[smarthr_custom_fields.probation_period_end] = end_trial_period;
     //cfields[smarthr_custom_fields.work_hours] = work_hours || '';
-    cfields[smarthr_custom_fields.work_hours_starting_time] = this.formatTime(work_hours_starting_time) || '';
-    cfields[smarthr_custom_fields.work_hours_closing_time] = this.formatTime(work_hours_closing_time) || '';
+    cfields[smarthr_custom_fields.work_hours_starting_time] = this.formatTime(work_hours_starting_time);
+    cfields[smarthr_custom_fields.work_hours_closing_time] = this.formatTime(work_hours_closing_time);
     cfields[smarthr_custom_fields.work_hours_break_time] = this.formatTime(work_hours_break_time);
     cfields[smarthr_custom_fields.work_hours_work_type] = work_type;
     cfields[smarthr_custom_fields.work_hours_holiday] = this.transformHolidayValue(holiday);
@@ -285,9 +295,9 @@ export class GaroonToSmartHRTransformer {
     cfields[smarthr_custom_fields.wages_annual_salary] = this.formatCurrency(annual_salary);
     cfields[smarthr_custom_fields.wages_monthly] = this.formatCurrency(fixed_monthly_salary);
     cfields[smarthr_custom_fields.wages_fixed_premium] = this.formatCurrency(fixed_premium_wage);
-    cfields[smarthr_custom_fields.wages_fixed_overtime_hours] = this.formatHours(fixed_monthly_overtime_hours);
+    cfields[smarthr_custom_fields.wages_fixed_overtime_hours] = fixed_monthly_overtime_hours;
 
-    cfields[smarthr_custom_fields.salary_classification] = salary_classification;
+    cfields[smarthr_custom_fields.salary_classification] = salary_classification_name;
     cfields[smarthr_custom_fields.job_description] = occupation;
     cfields[smarthr_custom_fields.trial_start_date] = start_trial_period;
     cfields[smarthr_custom_fields.trial_end_date] = end_trial_period;
@@ -299,11 +309,11 @@ export class GaroonToSmartHRTransformer {
     cfields[smarthr_custom_fields.vehicle_allowance] = this.sanitizeAllowanceValue(this.formatCurrency(vehicle_allowance));
     cfields[smarthr_custom_fields.other_allowance] = this.sanitizeAllowanceValue(this.formatCurrency(total_allowances_2));
 
-    //if (commuting_allowance === "1ヶ月") {
-    //  cfields[smarthr_custom_fields.commuting_allowance_monthly] = commuting_expenses;
-    //} else {
-    cfields[smarthr_custom_fields.commuting_allowance_daily] = commuting_expenses;
-    //}
+    // if (commuting_allowance === "1ヶ月") {
+      cfields[smarthr_custom_fields.commuting_allowance_monthly] = commuting_expenses;
+    // } else {
+      cfields[smarthr_custom_fields.commuting_allowance_daily] = commuting_expenses;
+    // }
 
     cfields[smarthr_custom_fields.employment_insurance] = employment_insurance_enrollment;
     cfields[smarthr_custom_fields.social_insurance] = social_insurance_coverage;
@@ -315,6 +325,7 @@ export class GaroonToSmartHRTransformer {
       if (cf && cfields[cFieldKey]) {
         custom_fields.push({
           template_id: cf.id,
+          name: cFieldKey,
           value: cfields[cFieldKey]
         });
       }
@@ -356,7 +367,7 @@ export class GaroonToSmartHRTransformer {
       contract_end_on: this.isValidDate(fixed_term_contract_end_date) ? this.formatJapaneseDate(fixed_term_contract_end_date) : null,
       custom_fields
     };
-    //console.log(crewData);
+    console.log(crewData);
     logger.debug('Transformed Garoon data to SmartHR format', {
       name: `${combinedFirstName} ${lastName}`,
       customFieldsCount: custom_fields.length
@@ -474,6 +485,9 @@ export class GaroonToSmartHRTransformer {
 
   formatTime(timeString) {
     if (!timeString) return '';
+    timeString = timeString.trim();
+    let temp_timeString = timeString.replace("：", ":").replace(": ", ":");
+    timeString = temp_timeString;
 
     // Assume timeString is in HH:MM format
     const parts = timeString.toString().split(':').map(Number);
@@ -482,10 +496,7 @@ export class GaroonToSmartHRTransformer {
 
     if (isNaN(hours) || isNaN(minutes)) return '';
 
-    const period = hours >= 12 ? 'PM' : 'AM';
-    const displayHours = hours % 12 || 12;
-
-    return `${displayHours.toString().padStart(2, '0')}:${minutes.toString().padStart(2, '0')} ${period}`;
+    return `${hours.toString().padStart(2, '0')}:${minutes.toString().padStart(2, '0')}`;
   }
 
   formatHours(value) {
