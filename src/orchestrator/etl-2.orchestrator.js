@@ -21,6 +21,81 @@ export class ETL2Orchestrator extends BaseOrchestrator {
     this.garoonToBQTransformer = new GaroonToBigQueryTransformer();
   }
 
+  async processPendingEmployeeChanges() {
+    try {
+      logger.info('[Pre-processing] Checking for pending employee changes...');
+      
+      const pendingChanges = await this.bigQueryService.getPendingEmpChanges();
+      
+      if (pendingChanges.length === 0) {
+        logger.info('[Pre-processing] No pending employee changes found for today');
+        return;
+      }
+
+      logger.info(`[Pre-processing] Found ${pendingChanges.length} pending employee changes for today`);
+
+      for (const change of pendingChanges) {
+        try {
+          logger.info(`[Pre-processing] Processing change for employee: ${change.employee_code}`);
+          
+          // Transform to format expected by processor
+          const changeData = {
+            emp_code: change.employee_code,
+            position: change.position,
+            custom_fields: this.buildCustomFieldsForChange(change)
+          };
+
+          // Process through SmartHR
+          const processor = this.processorFactory.getProcessor('UNIFIED_CHANGE');
+          const result = await processor.processDirectChange(changeData);
+
+          if (result.success) {
+            await this.bigQueryService.markEmpChangeProcessed(change.employee_code, change.change_date);
+            logger.info(`[Pre-processing] Successfully processed change for ${change.employee_code}`);
+          } else {
+            logger.error(`[Pre-processing] Failed to process change for ${change.employee_code}:`, result.error);
+          }
+
+        } catch (error) {
+          logger.error(`[Pre-processing] Error processing change for ${change.employee_code}:`, error);
+          await this.errorLogger.logError({
+            employee_code: change.employee_code,
+            change_date: change.change_date,
+            error: { message: error.message, stack: error.stack }
+          }, 'PRE_PROCESSING_ERROR');
+        }
+      }
+
+      logger.info('[Pre-processing] Completed processing pending employee changes');
+    } catch (error) {
+      logger.error('[Pre-processing] Failed to process pending employee changes:', error);
+      throw error;
+    }
+  }
+
+  buildCustomFieldsForChange(change) {
+    const customFields = [];
+    
+    if (change.type) customFields.push({ key: 'classification', value: change.type });
+    if (change.classification) customFields.push({ key: 'classification', value: change.classification });
+    if (change.new_salary) customFields.push({ key: 'new_salary', value: change.new_salary.toString() });
+    if (change.position_allowance) customFields.push({ key: 'position_allowance', value: change.position_allowance.toString() });
+    if (change.change_date) customFields.push({ key: 'effectivity_date', value: change.change_date });
+    
+    if (change.custom_fields) {
+      try {
+        const parsedCustomFields = JSON.parse(change.custom_fields);
+        if (Array.isArray(parsedCustomFields)) {
+          customFields.push(...parsedCustomFields);
+        }
+      } catch (error) {
+        logger.warn(`Failed to parse custom_fields for ${change.employee_code}:`, error);
+      }
+    }
+    
+    return customFields;
+  }
+
   async execute() {
     const startTime = new Date().toISOString();
     const stats = {
@@ -34,8 +109,11 @@ export class ETL2Orchestrator extends BaseOrchestrator {
     try {
       logger.info(`[Workflow ${WORKFLOW_ID}] Starting ETL - Running with pause mechanism (max ${this.maxPauses} pauses)`);
 
+      // Pre-processing step: Handle pending employee changes for today
+      await this.processPendingEmployeeChanges();
+
       while (true) {
-        const requests = await this.garoonService.fetchRequests(500, 1041, 'workflow_2');
+        const requests = await this.garoonService.fetchRequestsWithDateRange(500, 1041);
         
         if (!requests || requests.length === 0) {
           logger.info('No requests found, waiting 30 seconds...');
@@ -46,11 +124,11 @@ export class ETL2Orchestrator extends BaseOrchestrator {
         logger.info(`Fetched ${requests.length} requests from Garoon`);
         
         // TESTING: Filter to only process ID 840384 - REMOVE IN DEPLOYMENT
-        const filteredRequests = requests.filter(req => req.id === "840762"); // 840384
+        const filteredRequests = requests.filter(req => req.id === "840761"); // 840384, 840761, 840762
         if (filteredRequests.length > 0) {
-          logger.info(`🧪 TESTING MODE: Processing only ID 840762`);
+          logger.info(`🧪 TESTING MODE: Processing only ID 840761`);
         } else {
-          logger.info(`🧪 TESTING MODE: ID 840762 not found in current batch, skipping all requests`);
+          logger.info(`🧪 TESTING MODE: ID 840761 not found in current batch, skipping all requests`);
           stats.skippedRequests += requests.length;
           await new Promise(resolve => setTimeout(resolve, 5000));
           continue;
@@ -166,18 +244,7 @@ export class ETL2Orchestrator extends BaseOrchestrator {
 
       const transferStatus = await this.processEmployeeChange(bqData, processorType, requestId);
 
-      if (transferStatus === 'ERROR') {
-        return {
-          success: false,
-          error: 'Processing failed with ERROR status',
-          requestId,
-          requestName,
-          processorType
-        };
-      }
-
       if (transferStatus && typeof transferStatus === 'object' && transferStatus.error) {
-        // Error object returned from processEmployeeChange
         await this.errorLogger.logRequestError(
           requestId,
           requestName,
@@ -192,6 +259,16 @@ export class ETL2Orchestrator extends BaseOrchestrator {
         return {
           success: false,
           error: transferStatus.error,
+          requestId,
+          requestName,
+          processorType
+        };
+      }
+
+      if (transferStatus === 'ERROR') {
+        return {
+          success: false,
+          error: 'Processing failed with ERROR status',
           requestId,
           requestName,
           processorType

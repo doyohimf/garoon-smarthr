@@ -132,4 +132,60 @@ export class GaroonService {
       return false;
     }
   }
+
+  async fetchRequestsWithDateRange(limit = 500, formId = null) {
+    try {
+      // Set date range: current_date - 1 month to current_date
+      const now = new Date();
+      const oneMonthAgo = new Date();
+      oneMonthAgo.setMonth(oneMonthAgo.getMonth() - 1);
+
+      const startDate = oneMonthAgo.toISOString();
+      const endDate = now.toISOString();
+
+      logger.info('Using revamped date range (current_date - 1 month to current_date)', {
+        startDate,
+        endDate
+      });
+
+      const params = {
+        orderBy: 'createdAt desc',
+        limit,
+        offset: 0,
+        start: startDate,
+        end: endDate
+      };
+
+      if (formId) {
+        params.form_id = formId;
+      }
+
+      const data = await this.repository.getRequests(params);
+
+      if (!data || !data.requests || data.requests.length === 0) {
+        logger.warn('No requests found', {
+          formId,
+          startDate,
+          endDate
+        });
+        return [];
+      }
+
+      logger.info('Fetched Garoon requests with revamped date range', {
+        count: data.requests.length,
+        formId,
+        startDate,
+        endDate
+      });
+
+      return data.requests;
+    } catch (error) {
+      logger.error('Error fetching Garoon requests with date range', {
+        error,
+        formId,
+        limit
+      });
+      throw error;
+    }
+  }
 }
