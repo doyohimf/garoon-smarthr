@@ -52,9 +52,10 @@ export class EmployeeSecondmentProcessor {
     const transferTo = items.find(field => field.field_name === SECONDMENT_KEY_MAP.transferTo)?.field_value;
     const secondment_date = items.find(field => field.field_name === SECONDMENT_KEY_MAP.secondment_date)?.field_value;
     const secondment_period = items.find(field => field.field_name === SECONDMENT_KEY_MAP.secondment_period)?.field_value;
-
+    const duration = items.find(field => field.field_name === SECONDMENT_KEY_MAP.duration)?.field_value;
+    
     // Convert secondment_date to Gregorian calendar format if it's in Japanese era format
-    const gregorianSecondmentDate = DateUtil.parseJapaneseEraDate(secondment_date) || secondment_date;
+    // const gregorianSecondmentDate = DateUtil.parseJapaneseEraDate(secondment_date) || secondment_date;
 
     // Check department if already exist in SmartHR
     let department = transferTo;
@@ -88,12 +89,12 @@ export class EmployeeSecondmentProcessor {
 
     const cfields = {};
     cfields[SECONDMENT_CUSTOM_KEY_MAP.secondmentDetails] = detailValue;
-    cfields[SECONDMENT_CUSTOM_KEY_MAP.secondmentStatus] = secondment_period;
-    cfields[SECONDMENT_CUSTOM_KEY_MAP.secondmentEffectiveDate] = gregorianSecondmentDate;
+    cfields[SECONDMENT_CUSTOM_KEY_MAP.secondment_duration] = secondment_period + (duration ? ` ~ ${duration}` : '');
+    cfields[SECONDMENT_CUSTOM_KEY_MAP.secondmentEffectiveDate] = secondment_date;
 
     const customFieldTemplates = await this.smartHRRepository.getCustomFieldTemplates();
     const custom_fields = FormatterUtil.buildCustomFieldsArray(cfields, customFieldTemplates);
-    
+
     if(typeField === SECONDMENT_KEY_MAP.transfertType){
       return {
         employeeCode: employeeCode ? employeeCode : null,

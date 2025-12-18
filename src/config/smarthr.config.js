@@ -31,7 +31,7 @@ export const smarthr_custom_fields = {
   trial_end_date: '終期',
   position_allowance: '職位手当',
   managers_allowance: '責任者手当',
-  special_allowace: '特別手当',
+  special_allowance: '特別手当',
   relocation_allowance: '赴任手当',
   vehicle_allowance: '車両手当',
   other_allowance: 'その他手当'

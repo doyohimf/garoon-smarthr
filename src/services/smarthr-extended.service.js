@@ -29,8 +29,8 @@ export class SmartHRExtendedService {
         effective_date: data.effectiveDate
       };
 
-      logger.info('🔵 SMARTHR.updateEmployeeDepartment - Input Data:', JSON.stringify({ input: data }, null, 2));
-      logger.info('🔵 SMARTHR.updateEmployeeDepartment - Payload to API:', JSON.stringify({ updateData }, null, 2));
+      // logger.info('🔵 SMARTHR.updateEmployeeDepartment - Input Data:', JSON.stringify({ input: data }, null, 2));
+      // logger.info('🔵 SMARTHR.updateEmployeeDepartment - Payload to API:', JSON.stringify({ updateData }, null, 2));
 
       const result = await this.repository.updateCrew(employeeId, updateData);
       logger.info(`Employee department updated: ${data.employeeCode} (crew id: ${employeeId})`);
@@ -60,8 +60,8 @@ export class SmartHRExtendedService {
         effective_date: data.effectiveDate
       };
 
-      logger.info('🔵 SMARTHR.updateEmployeePosition - Input Data:', JSON.stringify({ input: data }, null, 2));
-      logger.info('🔵 SMARTHR.updateEmployeePosition - Payload to API:', JSON.stringify({ updateData }, null, 2));
+      // logger.info('🔵 SMARTHR.updateEmployeePosition - Input Data:', JSON.stringify({ input: data }, null, 2));
+      // logger.info('🔵 SMARTHR.updateEmployeePosition - Payload to API:', JSON.stringify({ updateData }, null, 2));
 
       const result = await this.repository.updateCrew(employeeId, updateData);
       logger.info(`Employee position updated: ${data.employeeCode} (crew id: ${employeeId})`);
@@ -90,8 +90,8 @@ export class SmartHRExtendedService {
         effective_date: data.effectiveDate
       };
 
-      logger.info('🔵 SMARTHR.updateEmployeeSalary - Input Data:', JSON.stringify({ input: data }, null, 2));
-      logger.info('🔵 SMARTHR.updateEmployeeSalary - Payload to API:', JSON.stringify({ updateData }, null, 2));
+      // logger.info('🔵 SMARTHR.updateEmployeeSalary - Input Data:', JSON.stringify({ input: data }, null, 2));
+      // logger.info('🔵 SMARTHR.updateEmployeeSalary - Payload to API:', JSON.stringify({ updateData }, null, 2));
 
       const result = await this.repository.updateCrew(employeeId, updateData);
       logger.info(`Employee salary updated: ${data.employeeCode} (crew id: ${employeeId})`);
@@ -118,8 +118,8 @@ export class SmartHRExtendedService {
       //   custom_fields: data.customFieldsArray
       // };
 
-      logger.info('🔵 SMARTHR.updateEmployeeSecondment - Input Data:', JSON.stringify({ input: data }, null, 2));
-      logger.info('🔵 SMARTHR.updateEmployeeSecondment - Payload to API:', JSON.stringify({ data }, null, 2));
+      // logger.info('🔵 SMARTHR.updateEmployeeSecondment - Input Data:', JSON.stringify({ input: data }, null, 2));
+      // logger.info('🔵 SMARTHR.updateEmployeeSecondment - Payload to API:', JSON.stringify({ data }, null, 2));
 
       const result = await this.repository.updateCrew(employeeId, data);
       logger.info(`Employee secondment updated: ${data.employeeCode} (crew id: ${employeeId})`);
@@ -146,8 +146,8 @@ export class SmartHRExtendedService {
       //   custom_fields: data.customFieldsArray
       // };
 
-      logger.info('🔵 SMARTHR.updateEmployeeChanges - Input Data:', JSON.stringify({ input: data }, null, 2));
-      logger.info('🔵 SMARTHR.updateEmployeeChanges - Payload to API:', JSON.stringify({ data }, null, 2));
+      // logger.info('🔵 SMARTHR.updateEmployeeChanges - Input Data:', JSON.stringify({ input: data }, null, 2));
+      // logger.info('🔵 SMARTHR.updateEmployeeChanges - Payload to API:', JSON.stringify({ data }, null, 2));
 
       const result = await this.repository.updateCrew(employeeId, data);
       logger.info(`Employee changes updated: ${data.emp_code} (crew id: ${employeeId})`);
@@ -198,8 +198,8 @@ export class SmartHRExtendedService {
       //   custom_fields: data.customFieldsArray
       // };
 
-      logger.info('🔵 SMARTHR.updateEmployeeLeaveStatus - Input Data:', JSON.stringify({ input: data }, null, 2));
-      logger.info('🔵 SMARTHR.updateEmployeeLeaveStatus - Payload to API:', JSON.stringify({ data }, null, 2));
+      //logger.info('🔵 SMARTHR.updateEmployeeLeaveStatus - Input Data:', JSON.stringify({ input: data }, null, 2));
+      //logger.info('🔵 SMARTHR.updateEmployeeLeaveStatus - Payload to API:', JSON.stringify({ data }, null, 2));
       const result = await this.repository.updateCrew(employeeId, data);
       logger.info(`Employee leave status updated: ${employeeId}`);
       return result;
@@ -225,8 +225,8 @@ export class SmartHRExtendedService {
         custom_fields: data.customFieldsArray
       };
 
-      logger.info('🔵 SMARTHR.updateEmployeeReturnStatus - Input Data:', JSON.stringify({ input: data }, null, 2));
-      logger.info('🔵 SMARTHR.updateEmployeeReturnStatus - Payload to API:', JSON.stringify({ updateData }, null, 2));
+      //logger.info('🔵 SMARTHR.updateEmployeeReturnStatus - Input Data:', JSON.stringify({ input: data }, null, 2));
+      //logger.info('🔵 SMARTHR.updateEmployeeReturnStatus - Payload to API:', JSON.stringify({ updateData }, null, 2));
 
       const result = await this.repository.updateCrew(employeeId, updateData);
       logger.info(`Employee return status updated: ${data.employeeCode} (crew id: ${employeeId})`);
@@ -253,8 +253,8 @@ export class SmartHRExtendedService {
         custom_fields: data.customFieldsArray
       };
 
-      logger.info('🔵 SMARTHR.updateEmployeeAllowances - Input Data:', JSON.stringify({ input: data }, null, 2));
-      logger.info('🔵 SMARTHR.updateEmployeeAllowances - Payload to API:', JSON.stringify({ updateData }, null, 2));
+      //logger.info('🔵 SMARTHR.updateEmployeeAllowances - Input Data:', JSON.stringify({ input: data }, null, 2));
+      //logger.info('🔵 SMARTHR.updateEmployeeAllowances - Payload to API:', JSON.stringify({ updateData }, null, 2));
 
       const result = await this.repository.updateCrew(employeeId, updateData);
       logger.info(`Employee allowances updated: ${data.employeeCode} (crew id: ${employeeId})`);
@@ -270,8 +270,8 @@ export class SmartHRExtendedService {
    */
   async updateEmployeeResignation(data) {
     try {
-      logger.info('🔵 SMARTHR.updateEmployeeResignation - Input Data:', JSON.stringify({ input: data }, null, 2));
-      logger.info('🔵 SMARTHR.updateEmployeeResignation - Payload to API:', JSON.stringify({ data }, null, 2));
+      // logger.info('🔵 SMARTHR.updateEmployeeResignation - Input Data:', JSON.stringify({ input: data }, null, 2));
+      // logger.info('🔵 SMARTHR.updateEmployeeResignation - Payload to API:', JSON.stringify({ data }, null, 2));
 
       // First, try to resolve the employee by employeeCode to get the crew id
       const employee = await this.repository.getCrewByCode(data.employeeCode);
@@ -307,8 +307,8 @@ export class SmartHRExtendedService {
         gender: data.gender
       };
 
-      logger.info('🔵 SMARTHR.createEmployeeResignation - Input Data:', JSON.stringify({ input: data }, null, 2));
-      logger.info('🔵 SMARTHR.createEmployeeResignation - Payload to API:', JSON.stringify({ createData }, null, 2));
+      //logger.info('🔵 SMARTHR.createEmployeeResignation - Input Data:', JSON.stringify({ input: data }, null, 2));
+      //logger.info('🔵 SMARTHR.createEmployeeResignation - Payload to API:', JSON.stringify({ createData }, null, 2));
 
       const result = await this.repository.createCrew(createData);
       
@@ -385,8 +385,8 @@ export class SmartHRExtendedService {
         updateData.position = data.position;
       }
 
-      logger.info('🔵 SMARTHR.updateEmployeeUnified - Input Data:', JSON.stringify({ input: data }, null, 2));
-      logger.info('🔵 SMARTHR.updateEmployeeUnified - Payload to API:', JSON.stringify({ updateData }, null, 2));
+      // logger.info('🔵 SMARTHR.updateEmployeeUnified - Input Data:', JSON.stringify({ input: data }, null, 2));
+      // logger.info('🔵 SMARTHR.updateEmployeeUnified - Payload to API:', JSON.stringify({ updateData }, null, 2));
 
       const result = await this.repository.updateCrew(employeeId, updateData);
       logger.info(`Employee unified update completed: ${data.employee_code} (crew id: ${employeeId})`);

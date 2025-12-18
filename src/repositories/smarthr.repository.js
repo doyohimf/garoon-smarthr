@@ -13,7 +13,7 @@ export class SmartHRRepository {
 
   async getCustomFieldTemplates() {
     try {
-      const response = await fetch(`${this.baseUrl}/crew_custom_field_templates?per_page=100`, {
+      const response = await fetch(`${this.baseUrl}/crew_custom_field_templates?per_page=500`, {
         method: 'GET',
         headers: {
           'Content-Type': 'application/json',
@@ -86,7 +86,7 @@ export class SmartHRRepository {
         },
         body: JSON.stringify(updateData)
       });
-
+      // console.log(`${this.baseUrl}/crews/${crewId}`, JSON.stringify(updateData));
       if (!response.ok) {
         const errorData = await response.json();
         throw new Error(`SmartHR API error: ${response.status} - ${JSON.stringify(errorData)}`);

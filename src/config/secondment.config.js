@@ -13,10 +13,12 @@ export const SECONDMENT_KEY_MAP = {
     employee_code: '対象者社員コード',
     transfertType: '転籍',
     transferTo: '出向/転籍先の部署',
+    duration: '期間',
 };
 
 export const SECONDMENT_CUSTOM_KEY_MAP = {
     secondmentDetails: '出向の詳細',
     secondmentStatus: '出向状況',
     secondmentEffectiveDate: '移転の効力発生日',
+    secondment_duration: '出向状況（期間）',
 };

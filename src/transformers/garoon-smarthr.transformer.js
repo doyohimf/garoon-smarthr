@@ -23,12 +23,6 @@ export class GaroonToSmartHRTransformer {
       emp_code = this.extractEmpCodeFromComments(garoonRequest);
     }
     
-    // Generate temporary ID if emp_code is '9999'
-    // if (emp_code === '9999') {
-    //   const randomDigits = Math.floor(Math.random() * 10000000).toString().padStart(7, '0');
-    //   emp_code = `TEMP-ID-${randomDigits}`;
-    // }
-    console.log(emp_code);
     // Extract name fields
     const firstName = this.findGaroonData(garoonRequest, garoonFields.firstname) || '';
     const lastName = this.findGaroonData(garoonRequest, garoonFields.lastname) || '';
@@ -174,7 +168,7 @@ export class GaroonToSmartHRTransformer {
         fixed_monthly_overtime_hours = parseInt(match[1], 10);
       }
     }
-    console.log(fixed_monthly_overtime_hours);
+    
     const annual_salary = this.findGaroonData(garoonRequest, garoonFields.annual_salary);
     const monthly_salary = this.findGaroonData(garoonRequest, garoonFields.monthly_salary_amount);
     const fixed_monthly_salary = this.findGaroonData(garoonRequest, garoonFields.fixed_monthly_salary);
@@ -309,11 +303,12 @@ export class GaroonToSmartHRTransformer {
     cfields[smarthr_custom_fields.vehicle_allowance] = this.sanitizeAllowanceValue(this.formatCurrency(vehicle_allowance));
     cfields[smarthr_custom_fields.other_allowance] = this.sanitizeAllowanceValue(this.formatCurrency(total_allowances_2));
 
-    // if (commuting_allowance === "1ヶ月") {
-      cfields[smarthr_custom_fields.commuting_allowance_monthly] = commuting_expenses;
-    // } else {
-      cfields[smarthr_custom_fields.commuting_allowance_daily] = commuting_expenses;
-    // }
+    const monthlyAllowanceRegex = /^(1|１|一)[かヶ箇個]月$/;
+    if (monthlyAllowanceRegex.test(commuting_allowance)) {
+      cfields[smarthr_custom_fields.commuting_allowance_monthly] = this.formatCurrency(commuting_expenses);
+    } else {
+      cfields[smarthr_custom_fields.commuting_allowance_daily] = this.formatCurrency(commuting_expenses);
+    }
 
     cfields[smarthr_custom_fields.employment_insurance] = employment_insurance_enrollment;
     cfields[smarthr_custom_fields.social_insurance] = social_insurance_coverage;
@@ -363,8 +358,8 @@ export class GaroonToSmartHRTransformer {
       ...(department_ids.length > 0 ? { department_ids } : { department }),
       payment_period_id: salary_classification,
       contract_type: employee_classification === '有期雇用' ? 'fixed_term' : 'unlimited',
-      contract_start_on: this.isValidDate(fixed_term_contract_start_date) ? this.formatJapaneseDate(fixed_term_contract_start_date) : null,
-      contract_end_on: this.isValidDate(fixed_term_contract_end_date) ? this.formatJapaneseDate(fixed_term_contract_end_date) : null,
+      contract_start_on: this.isValidDate(fixed_term_contract_start_date) ? this.formatGregorianDate(fixed_term_contract_start_date) : null,
+      contract_end_on: this.isValidDate(fixed_term_contract_end_date) ? this.formatGregorianDate(fixed_term_contract_end_date) : null,
       custom_fields
     };
     console.log(crewData);
@@ -496,7 +491,7 @@ export class GaroonToSmartHRTransformer {
 
     if (isNaN(hours) || isNaN(minutes)) return '';
 
-    return `${hours.toString().padStart(2, '0')}:${minutes.toString().padStart(2, '0')}`;
+    return `${hours}時${minutes.toString().padStart(2, '0')}分`;
   }
 
   formatHours(value) {
@@ -593,6 +588,16 @@ export class GaroonToSmartHRTransformer {
     return `year ${era}${eraYear}, month ${month.toString().padStart(2, '0')}, day ${day.toString().padStart(2, '0')}`;
   }
 
+  formatGregorianDate(dateString) {
+    if (!dateString) return '';
+    const date = new Date(dateString);
+    if (isNaN(date)) return dateString;
+    const year = date.getFullYear();
+    const month = (date.getMonth() + 1).toString().padStart(2, '0');
+    const day = date.getDate().toString().padStart(2, '0');
+    return `${year}-${month}-${day}`;
+  }
+
   extractEmpCodeFromComments(garoonRequest) {
     if (!garoonRequest.steps) return null;
 
@@ -600,9 +605,9 @@ export class GaroonToSmartHRTransformer {
       .flatMap(step => step.processors)
       .map(p => p.comment)
       .filter(c => c);
-
+      
     for (const comment of comments) {
-      const match = comment.match(/社員コード：(.+?)(?:\n|$)/);
+      const match = comment.match(/社員コード：\s*[\n\r]*\s*(\d+)/);
       if (match) {
         return match[1].trim();
       }

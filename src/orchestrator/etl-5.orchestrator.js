@@ -66,21 +66,21 @@ export class ETL5Orchestrator {
 
         logger.info(`Fetched ${requests.length} requests from Garoon`);
         
-        // TESTING: Filter to only process ID 840067 - REMOVE IN DEPLOYMENT
-        const filteredRequests = requests.filter(req => req.id === "840764"); //840764 840067
-        if (filteredRequests.length > 0) {
-          logger.info(`🧪 TESTING MODE: Processing only ID 840764`);
-        } else {
-          logger.info(`🧪 TESTING MODE: ID 840764 not found in current batch, skipping all requests`);
-          stats.skippedRequests += requests.length;
-          await new Promise(resolve => setTimeout(resolve, 5000));
-          continue;
-        }
+        // TESTING: Filter to only process ID 844137 - REMOVE IN DEPLOYMENT
+        // const filteredRequests = requests.filter(req => req.id === "844137"); //840764 840067, 844137, 840764
+        // if (filteredRequests.length > 0) {
+        //   logger.info(`🧪 TESTING MODE: Processing only ID 844137`);
+        // } else {
+        //   logger.info(`🧪 TESTING MODE: ID 844137 not found in current batch, skipping all requests`);
+        //   stats.skippedRequests += requests.length;
+        //   await new Promise(resolve => setTimeout(resolve, 5000));
+        //   continue;
+        // }
         
-        //stats.totalRequests += requests.length;
-        stats.totalRequests += filteredRequests.length;
-        //for (const request of requests) {
-        for (const request of filteredRequests) {
+        stats.totalRequests += requests.length;
+        // stats.totalRequests += filteredRequests.length;
+        for (const request of requests) {
+        // for (const request of filteredRequests) {
         try {
           const requestId = request.id;
           const requestName = request.name;

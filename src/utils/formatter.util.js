@@ -78,6 +78,7 @@ export class FormatterUtil {
       if (cf && data[cFieldKey]) {
         customFieldsArray.push({
           template_id: cf.id,
+          name: cFieldKey,
           value: data[cFieldKey]
         });
       }

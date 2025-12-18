@@ -52,14 +52,20 @@ export class EmployeeAllowanceChangeProcessor {
         return { success: false, error: 'Failed to check for duplicates' };
       }
 
-      // Check if change_date is today or within the past 7 days
-      let isChangeDateRecent = false;
+      // Check if change_date is exactly today
+      let isChangeDateToday = false;
       try {
-        isChangeDateRecent = DateUtil.isWithinPastDays(allowanceData.changeDate, 14);
-        logger.info(`Change date "${allowanceData.changeDate}" is within past 14 days? ${isChangeDateRecent}`);
+        const today = new Date();
+        const changeDate = new Date(allowanceData.changeDate);
+        isChangeDateToday = (
+          today.getFullYear() === changeDate.getFullYear() &&
+          today.getMonth() === changeDate.getMonth() &&
+          today.getDate() === changeDate.getDate()
+        );
+        logger.info(`Change date "${allowanceData.changeDate}" is today? ${isChangeDateToday}`);
       } catch (dateError) {
-        logger.error(`Error checking if date is within past 14 days: ${allowanceData.changeDate}`, dateError);
-        isChangeDateRecent = false;
+        logger.error(`Error checking if date is today: ${allowanceData.changeDate}`, dateError);
+        isChangeDateToday = false;
       }
 
       // Store in allowances_workflow table
@@ -78,20 +84,18 @@ export class EmployeeAllowanceChangeProcessor {
         return { success: false, error: 'Failed to store workflow data' };
       }
       console.log(isChangeDateRecent);
-      // If change_date is today or within the past 7 days, transmit to SmartHR
-      if (isChangeDateRecent) {
-        logger.info(`✅ Change date is recent - transmitting to SmartHR for ${allowanceData.employeeCode}`);
-        
+      // If change_date is today, transmit to SmartHR
+      if (isChangeDateToday) {
+        logger.info(`✅ Change date is today - transmitting to SmartHR for ${allowanceData.employeeCode}`);
         const result = await this.retryUtil.executeWithRetry(
           async () => await this.smartHRExtendedService.updateEmployeeAllowances(allowanceData),
           3,
           1000
         );
-
         logger.info(`✓ Allowance change completed: ${allowanceData.employeeCode}`);
         return { success: true, result, transmitted: true };
       } else {
-        logger.info(`⏸️  Change date is not recent - data stored, awaiting processing date. Employee: ${allowanceData.employeeCode}`);
+        logger.info(`⏸️  Change date is not today - data stored, awaiting processing date. Employee: ${allowanceData.employeeCode}`);
         return { success: true, transmitted: false, message: 'Data stored, awaiting processing date' };
       }
 
@@ -104,7 +108,7 @@ export class EmployeeAllowanceChangeProcessor {
   async extractAllowanceData(request) {
     const items = request.formFields || {};
     const employeeCode = items.find(field => field.field_name === garoonFields.target_employee_code)?.field_value;
-    const allowanceName = items.find(field => field.field_name === ALLOWANCE_KEY_MAP.allowanceName)?.field_value;
+    const allowanceName = items.find(field => field.field_name === ALLOWANCE_KEY_MAP.allowanceName)?.field_value.trim();
     const changeDate = items.find(field => field.field_name === ALLOWANCE_KEY_MAP.effectiveDate)?.field_value;
     const changeAmount = this.parseAmount(items.find(field => field.field_name === ALLOWANCE_KEY_MAP.changeAmount)?.field_value);
     const details = items.find(field => field.field_name === ALLOWANCE_KEY_MAP['details'])?.field_value || null;
@@ -113,7 +117,7 @@ export class EmployeeAllowanceChangeProcessor {
 
     var position_allowance = '';
     var managers_allowance = '';
-    var special_allowace = '';
+    var special_allowance = '';
     var relocation_allowance = '';
     var vehicle_allowance = '';
     
@@ -125,7 +129,7 @@ export class EmployeeAllowanceChangeProcessor {
         managers_allowance = changeAmount;
         break;
       case '特別手当':
-        special_allowace = changeAmount;
+        special_allowance = changeAmount;
         break;
       case '赴任手当':
         relocation_allowance = changeAmount;
@@ -136,15 +140,15 @@ export class EmployeeAllowanceChangeProcessor {
     }
 
     const cfields = {};
-    cfields[ALLOWANCE_CUSTOM_KEY_MAP.allowanceName] = allowanceName;
+    //cfields[ALLOWANCE_CUSTOM_KEY_MAP.allowanceName] = allowanceName;
     cfields[smarthr_custom_fields.position_allowance] = position_allowance;
     cfields[smarthr_custom_fields.managers_allowance] = managers_allowance;
-    cfields[smarthr_custom_fields.special_allowance] = special_allowace;
+    cfields[smarthr_custom_fields.special_allowance] = special_allowance;
     cfields[smarthr_custom_fields.relocation_allowance] = relocation_allowance;
     cfields[smarthr_custom_fields.vehicle_allowance] = vehicle_allowance;
-    cfields[ALLOWANCE_CUSTOM_KEY_MAP.changeDate] = changeDate;
+    //cfields[ALLOWANCE_CUSTOM_KEY_MAP.changeDate] = changeDate;
     //cfields[ALLOWANCE_CUSTOM_KEY_MAP.changeAmount] = changeAmount;
-    cfields[ALLOWANCE_CUSTOM_KEY_MAP.changeDetails] = details;
+    //cfields[ALLOWANCE_CUSTOM_KEY_MAP.changeDetails] = details;
 
     const customFieldTemplates = await this.smartHRRepository.getCustomFieldTemplates();
     const customFieldsArray = FormatterUtil.buildCustomFieldsArray(cfields, customFieldTemplates);
@@ -152,13 +156,13 @@ export class EmployeeAllowanceChangeProcessor {
     if (!details) {
       logger.warn('No details field found in request');
     }
-    
+    console.log(customFieldsArray);
     return {
       employeeCode: employeeCode,
       allowanceName: allowanceName,
       changeDate: changeDate,
       changeAmount: changeAmount,
-      details: details,
+      //details: details,
       customFieldsArray
     };
   }

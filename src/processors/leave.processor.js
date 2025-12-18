@@ -69,7 +69,7 @@ export class EmployeeLeaveProcessor {
 
     const detailValue = items.find(field => field.field_name === garoonFields.details)?.field_value;
     const employeeCode = items.find(field => field.field_name === garoonFields.target_employee_code)?.field_value;
-
+    console.log(employeeCode);
     const cfields = {};
     cfields[LEAVES_CUSTOM_FIELDS.details] = detailValue;
     cfields[LEAVES_CUSTOM_FIELDS.empStatus] = 'on_leave';
@@ -78,6 +78,7 @@ export class EmployeeLeaveProcessor {
     const custom_fields = FormatterUtil.buildCustomFieldsArray(cfields, customFieldTemplates);
 
     return {
+      emp_status: 'absent',
       employeeCode: employeeCode,
       widow_memo: detailValue,
       memo: detailValue,
@@ -100,6 +101,7 @@ export class EmployeeLeaveProcessor {
 
     return {
       employeeCode: employeeCode,
+      emp_status: 'employed',
       // returnDate: this.findValue(lines, '復職日'),
       // dueDate: this.findValue(lines, '出産予定日'),
       // maternityleavePeriod: this.findValue(lines, LEAVES_KEY_MAP['maternityLeavePeriod']),

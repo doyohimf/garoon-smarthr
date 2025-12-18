@@ -11,6 +11,7 @@ export const ALLOWANCE_KEY_MAP = {
     rentDeduction: "家賃控除",
     monthlyTotal: "月額総額",
     effectiveDate: "変更日",
+    special: "特別手当",
 };
 
 export const ALLOWANCE_CUSTOM_KEY_MAP = {

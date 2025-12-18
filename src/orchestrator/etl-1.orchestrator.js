@@ -48,11 +48,11 @@ export class ETL1Orchestrator extends BaseOrchestrator {
         logger.info(`Fetched ${requests.length} requests from Garoon`);
         
         // TESTING: Filter to only process ID 840383 - REMOVE IN DEPLOYMENT
-        const filteredRequests = requests.filter(req => req.id === '840383'); //840383 is example ID-- 840895
+        const filteredRequests = requests.filter(req => req.id === '842926'); //840383 is example ID-- 840895, 842926
         if (filteredRequests.length > 0) {
-          logger.info(`🧪 TESTING MODE: Processing only ID 840383`);
+          logger.info(`🧪 TESTING MODE: Processing only ID 842926`);
         } else {
-          logger.info(`🧪 TESTING MODE: ID 840383 not found in current batch, skipping all requests`);
+          logger.info(`🧪 TESTING MODE: ID 842926 not found in current batch, skipping all requests`);
           stats.skippedRequests += requests.length;
           await new Promise(resolve => setTimeout(resolve, 5000));
           continue;
