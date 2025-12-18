@@ -83,7 +83,7 @@ export class EmployeeAllowanceChangeProcessor {
         logger.error(`Error storing to allowances_workflow: ${allowanceData.employeeCode}`, dbError);
         return { success: false, error: 'Failed to store workflow data' };
       }
-      console.log(isChangeDateRecent);
+      
       // If change_date is today, transmit to SmartHR
       if (isChangeDateToday) {
         logger.info(`✅ Change date is today - transmitting to SmartHR for ${allowanceData.employeeCode}`);
@@ -156,7 +156,7 @@ export class EmployeeAllowanceChangeProcessor {
     if (!details) {
       logger.warn('No details field found in request');
     }
-    console.log(customFieldsArray);
+    
     return {
       employeeCode: employeeCode,
       allowanceName: allowanceName,

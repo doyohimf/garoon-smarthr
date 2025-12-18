@@ -15,7 +15,7 @@
     "etl:5": "node src/etl-5.js",
     "etl:6": "node src/etl-6.js",
     "etl:7": "node src/etl-7.js",
-    "deploy": "gcloud functions deploy garoonToSmartHRETL --gen2 --runtime=nodejs20 --region=asia-northeast1 --source=. --entry-point=garoonToSmartHRETL --trigger-http --allow-unauthenticated --memory=512MB --timeout=540s --env-vars-file=.env.yaml"
+    "deploy": "gcloud functions deploy garoonToSmartHRETL --gen2 --runtime=nodejs20 --region=asia-northeast1 --source=. --entry-point=garoonToSmartHRETL --trigger-http --memory=512MB --timeout=540s --env-vars-file=.env.yaml"
   },
   "engines": {
     "node": ">=20.0.0"

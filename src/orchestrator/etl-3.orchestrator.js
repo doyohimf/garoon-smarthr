@@ -46,24 +46,24 @@ export class ETL3Orchestrator extends BaseOrchestrator {
         logger.info(`Fetched ${requests.length} requests from Garoon`);
         
         // TESTING: Filter to only process ID 840075 - REMOVE IN DEPLOYMENT
-        const filteredRequests = requests.filter(req => req.id === "840075");
-        if (filteredRequests.length > 0) {
-          logger.info(`🧪 TESTING MODE: Processing only ID 840075`);
-        } else {
-          logger.info(`🧪 TESTING MODE: ID 840075 not found in current batch, skipping all requests`);
-          stats.skippedRequests += requests.length;
-          await new Promise(resolve => setTimeout(resolve, 5000));
-          continue;
-        }
+        // const filteredRequests = requests.filter(req => req.id === "840075");
+        // if (filteredRequests.length > 0) {
+        //   logger.info(`🧪 TESTING MODE: Processing only ID 840075`);
+        // } else {
+        //   logger.info(`🧪 TESTING MODE: ID 840075 not found in current batch, skipping all requests`);
+        //   stats.skippedRequests += requests.length;
+        //   await new Promise(resolve => setTimeout(resolve, 5000));
+        //   continue;
+        // }
         
-        //stats.totalRequests += requests.length;
-        stats.totalRequests += filteredRequests.length;
+        stats.totalRequests += requests.length;
+        // stats.totalRequests += filteredRequests.length;
         let batchProcessedCount = 0;
         let batchSkippedCount = 0;
         let batchErrorCount = 0;
 
-        //for (const request of requests) {
-        for (const request of filteredRequests) {
+        for (const request of requests) {
+        // for (const request of filteredRequests) {
         try {
           const requestId = request.id;
           const requestName = request.name;
