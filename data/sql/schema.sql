@@ -1,56 +1,5 @@
--- requests table
-CREATE TABLE IF NOT EXISTS data-integration-474311.saasdb.requests (
-  request_id STRING NOT NULL,
-  request_number STRING,
-  request_name STRING,
-  status STRING,
-  status_type STRING,
-  created_at TIMESTAMP,
-  processing_step_code STRING,
-  is_urgent BOOLEAN,
-  applicant_id STRING,
-  applicant_code STRING,
-  applicant_name STRING,
-  extracted_at TIMESTAMP
-) CLUSTER BY request_id, created_at;
-
--- request_form_fields table
-CREATE TABLE IF NOT EXISTS data-integration-474311.saasdb.request_form_fields (
-  request_id STRING NOT NULL,
-  field_code STRING NOT NULL,
-  field_name STRING,
-  field_name_eng STRING,
-  field_type STRING,
-  field_value STRING,
-  extracted_at TIMESTAMP
-) CLUSTER BY request_id, field_code;
-
--- request_steps table
-CREATE TABLE IF NOT EXISTS data-integration-474311.saasdb.request_steps (
-  request_id STRING NOT NULL,
-  step_id STRING NOT NULL,
-  step_code STRING NOT NULL,
-  step_name STRING,
-  is_approval_step INTEGER,
-  requirement STRING,
-  extracted_at TIMESTAMP
-) CLUSTER BY request_id, step_id;
-
--- request_step_processors table
-CREATE TABLE IF NOT EXISTS data-integration-474311.saasdb.request_step_processors (
-  request_id STRING NOT NULL,
-  step_id STRING NOT NULL,
-  processor_id STRING,
-  processor_code STRING,
-  processor_name STRING,
-  result STRING,
-  comment STRING,
-  operated_at TIMESTAMP,
-  extracted_at TIMESTAMP
-) CLUSTER BY request_id, step_id;
-
 -- garoon_requests table
-CREATE TABLE IF NOT EXISTS data-integration-474311.saasdb.garoon_requests (
+CREATE TABLE IF NOT EXISTS data-integration-474311.etl_db.garoon_requests (
   id STRING NOT NULL,
   request_id STRING NOT NULL,
   request_number STRING,
@@ -62,7 +11,7 @@ CREATE TABLE IF NOT EXISTS data-integration-474311.saasdb.garoon_requests (
 ) CLUSTER BY request_id, status;
 
 -- allowances_workflow table (WF#5)
-CREATE TABLE IF NOT EXISTS data-integration-474311.saasdb.allowances_workflow (
+CREATE TABLE IF NOT EXISTS data-integration-474311.etl_db.allowances_workflow (
   employee_code STRING NOT NULL,
   change_date DATE NOT NULL,
   type STRING NOT NULL,
@@ -77,7 +26,7 @@ CREATE TABLE IF NOT EXISTS data-integration-474311.saasdb.allowances_workflow (
 ) CLUSTER BY employee_code, change_date;
 
 -- empchanges_workflow table (WF#2)
-CREATE TABLE IF NOT EXISTS data-integration-474311.saasdb.empchanges_workflow (
+CREATE TABLE IF NOT EXISTS data-integration-474311.etl_db.empchanges_workflow (
   employee_code STRING NOT NULL,
   change_date DATE NOT NULL,
   type STRING NOT NULL,
