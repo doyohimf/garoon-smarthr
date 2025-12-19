@@ -4,10 +4,64 @@ import { logger } from '../utils/logger.util.js';
 export class SmartHRRepository {
   constructor() {
     this.baseUrl = env.SMARTHR_BASE_URL;
+    this.prodBaseUrl = env.SMARTHR_PROD_BASE_URL;
     this.accessToken = env.SMARTHR_ACCESS_TOKEN;
+    this.prodAccessToken = env.SMARTHR_PROD_ACCESS_TOKEN;
     
     if (!this.baseUrl || !this.accessToken) {
       throw new Error('SmartHR configuration missing: SMARTHR_BASE_URL and SMARTHR_ACCESS_TOKEN are required');
+    }
+  }
+
+  async _makeRequestToBothEndpoints(endpoint, options = {}, method = 'GET') {
+    const requests = [
+      { baseUrl: this.baseUrl, token: this.accessToken }
+    ];
+    
+    if (this.prodBaseUrl) {
+      requests.push({ 
+        baseUrl: this.prodBaseUrl, 
+        token: this.prodAccessToken || this.accessToken 
+      });
+    }
+
+    const results = await Promise.allSettled(
+      requests.map(async ({ baseUrl, token }) => {
+        const url = `${baseUrl}${endpoint}`;
+        const response = await fetch(url, {
+          method,
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${token}`
+          },
+          ...options
+        });
+
+        if (!response.ok) {
+          const errorData = method === 'GET' ? response.statusText : await response.json();
+          throw new Error(`SmartHR API error (${baseUrl}): ${response.status} - ${JSON.stringify(errorData)}`);
+        }
+
+        return await response.json();
+      })
+    );
+
+    // Log results for both endpoints
+    results.forEach((result, index) => {
+      const url = requests[index].baseUrl;
+      if (result.status === 'fulfilled') {
+        logger.info(`Request to ${url} succeeded`);
+      } else {
+        logger.error(`Request to ${url} failed:`, result.reason);
+      }
+    });
+
+    // Return primary endpoint result or throw error if both failed
+    const primaryResult = results[0];
+    if (primaryResult.status === 'fulfilled') {
+      return primaryResult.value;
+    } else {
+      throw primaryResult.reason;
     }
   }
 
@@ -34,21 +88,11 @@ export class SmartHRRepository {
 
   async createCrew(crewData) {
     try {
-      const response = await fetch(`${this.baseUrl}/crews`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${this.accessToken}`
-        },
-        body: JSON.stringify(crewData)
-      });
-
-      if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(`SmartHR API error: ${response.status} - ${JSON.stringify(errorData)}`);
-      }
-
-      return await response.json();
+      return await this._makeRequestToBothEndpoints(
+        '/crews',
+        { body: JSON.stringify(crewData) },
+        'POST'
+      );
     } catch (error) {
       logger.error('Error creating crew', error);
       throw error;
@@ -78,21 +122,11 @@ export class SmartHRRepository {
 
   async updateCrew(crewId, updateData) {
     try {
-      const response = await fetch(`${this.baseUrl}/crews/${crewId}`, {
-        method: 'PATCH',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${this.accessToken}`
-        },
-        body: JSON.stringify(updateData)
-      });
-      // console.log(`${this.baseUrl}/crews/${crewId}`, JSON.stringify(updateData));
-      if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(`SmartHR API error: ${response.status} - ${JSON.stringify(errorData)}`);
-      }
-
-      return await response.json();
+      return await this._makeRequestToBothEndpoints(
+        `/crews/${crewId}`,
+        { body: JSON.stringify(updateData) },
+        'PATCH'
+      );
     } catch (error) {
       logger.error('Error updating crew', error);
       throw error;
@@ -212,21 +246,11 @@ export class SmartHRRepository {
 
   async createDepartment(departmentData) {
     try {
-      const response = await fetch(`${this.baseUrl}/departments`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${this.accessToken}`
-        },
-        body: JSON.stringify(departmentData)
-      });
-
-      if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(`SmartHR API error: ${response.status} - ${JSON.stringify(errorData)}`);
-      }
-
-      return await response.json();
+      return await this._makeRequestToBothEndpoints(
+        '/departments',
+        { body: JSON.stringify(departmentData) },
+        'POST'
+      );
     } catch (error) {
       logger.error('Error creating department', error);
       throw error;

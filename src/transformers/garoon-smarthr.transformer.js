@@ -362,7 +362,7 @@ export class GaroonToSmartHRTransformer {
       contract_end_on: this.isValidDate(fixed_term_contract_end_date) ? this.formatGregorianDate(fixed_term_contract_end_date) : null,
       custom_fields
     };
-    console.log(crewData);
+    
     logger.debug('Transformed Garoon data to SmartHR format', {
       name: `${combinedFirstName} ${lastName}`,
       customFieldsCount: custom_fields.length

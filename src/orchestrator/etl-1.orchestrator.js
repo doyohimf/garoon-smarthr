@@ -6,7 +6,6 @@ import { RetryUtil } from '../utils/retry.util.js';
 import { logger } from '../utils/logger.util.js';
 import { ErrorLogger } from '../utils/error-logger.util.js';
 import { RequestRouter } from '../routers/request.router.js';
-import { PauseUtil } from '../utils/pause.util.js';
 import { BaseOrchestrator } from './base.orchestrator.js';
 
 const WORKFLOW_ID = 1;
@@ -34,37 +33,34 @@ export class ETL1Orchestrator extends BaseOrchestrator {
     };
 
     try {
-      logger.info(`[Workflow ${WORKFLOW_ID}] Starting ETL - Running with pause mechanism (max ${this.maxPauses} pauses)`);
+      logger.info(`[Workflow ${WORKFLOW_ID}] Starting ETL`);
 
-      while (true) {
-        const requests = await this.garoonService.fetchRequests(500, 1032, 'workflow_1');
-        
-        if (!requests || requests.length === 0) {
-          logger.info('No requests found, waiting 30 seconds...');
-          await new Promise(resolve => setTimeout(resolve, 30000));
-          continue;
-        }
+      const requests = await this.garoonService.fetchRequests(500, 1032, 'workflow_1');
+      
+      if (!requests || requests.length === 0) {
+        logger.info('No requests found, ending ETL run');
+        return { success: true, message: 'No requests to process' };
+      }
 
         logger.info(`Fetched ${requests.length} requests from Garoon`);
         
         // TESTING: Filter to only process ID 840383 - REMOVE IN DEPLOYMENT
-        const filteredRequests = requests.filter(req => req.id === '842926'); //840383 is example ID-- 840895, 842926
-        if (filteredRequests.length > 0) {
-          logger.info(`🧪 TESTING MODE: Processing only ID 842926`);
-        } else {
-          logger.info(`🧪 TESTING MODE: ID 842926 not found in current batch, skipping all requests`);
-          stats.skippedRequests += requests.length;
-          await new Promise(resolve => setTimeout(resolve, 5000));
-          continue;
-        }
-        // stats.totalRequests += requests.length;
-        stats.totalRequests += filteredRequests.length;
+        // const filteredRequests = requests.filter(req => req.id === '842926'); //840383 is example ID-- 840895, 842926
+        // if (filteredRequests.length > 0) {
+        //   logger.info(`🧪 TESTING MODE: Processing only ID 842926`);
+        // } else {
+        //   logger.info(`🧪 TESTING MODE: ID 842926 not found in current batch, skipping all requests`);
+        //   stats.skippedRequests += requests.length;
+        //   continue;
+        // }
+        stats.totalRequests += requests.length;
+        // stats.totalRequests += filteredRequests.length;
         let batchProcessedCount = 0;
         let batchSkippedCount = 0;
         let batchErrorCount = 0;
         
-        // for (const request of requests) {
-        for (const request of filteredRequests) {
+        for (const request of requests) {
+        // for (const request of filteredRequests) {
         try {
           const requestId = request.id;
           const requestName = request.name;
@@ -80,7 +76,6 @@ export class ETL1Orchestrator extends BaseOrchestrator {
             continue;
           }
 
-          //console.log(JSON.stringify(request.steps, null, 2));
           const processorType = 'NEW_HIRE';
 
           const fullNameField = Object.values(request.items).find(
@@ -161,12 +156,7 @@ export class ETL1Orchestrator extends BaseOrchestrator {
           requests.length
         );
 
-        // Handle pause logic using base class method
-        const shouldExit = await this.handlePauseLogic(totalBatchProcessed, requests.length, WORKFLOW_ID);
-        if (shouldExit) {
-          break;
-        }
-      }
+        logger.info(`[Workflow ${WORKFLOW_ID}] Batch processing completed`);
 
       this.logFinalCompletion(WORKFLOW_ID, stats);
 

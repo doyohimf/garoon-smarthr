@@ -5,14 +5,11 @@ import { ErrorLogger } from '../utils/error-logger.util.js';
 import { RequestRouter } from '../routers/request.router.js';
 import { ProcessorFactory } from '../processors/processor.factory.js';
 import { GaroonToBigQueryTransformer } from '../transformers/garoon-bq.transformer.js';
-import { PauseUtil } from '../utils/pause.util.js';
-import { BaseOrchestrator } from './base.orchestrator.js';
 
 const WORKFLOW_ID = 2;
 
-export class ETL2Orchestrator extends BaseOrchestrator {
+export class ETL2Orchestrator {
   constructor() {
-    super();
     this.garoonService = new GaroonService();
     this.bigQueryService = new BigQueryService();
     this.errorLogger = new ErrorLogger();
@@ -107,40 +104,39 @@ export class ETL2Orchestrator extends BaseOrchestrator {
     };
 
     try {
-      logger.info(`[Workflow ${WORKFLOW_ID}] Starting ETL - Running with pause mechanism (max ${this.maxPauses} pauses)`);
+      logger.info(`[Workflow ${WORKFLOW_ID}] Starting ETL - Processing all available requests`);
 
       // Pre-processing step: Handle pending employee changes for today
       await this.processPendingEmployeeChanges();
 
-      while (true) {
-        const requests = await this.garoonService.fetchRequestsWithDateRange(500, 1041);
-        
-        if (!requests || requests.length === 0) {
-          logger.info('No requests found, waiting 30 seconds...');
-          await new Promise(resolve => setTimeout(resolve, 30000));
-          continue;
-        }
+      const requests = await this.garoonService.fetchRequestsWithDateRange(500, 1041);
+      
+      if (!requests || requests.length === 0) {
+        logger.info('No requests found, ending ETL run.');
+        return;
+      }
 
-        logger.info(`Fetched ${requests.length} requests from Garoon`);
-        
-        // TESTING: Filter to only process ID 840384 - REMOVE IN DEPLOYMENT
-        // const filteredRequests = requests.filter(req => req.id === "840761"); // 840384, 840761, 840762
-        // if (filteredRequests.length > 0) {
-        //   logger.info(`🧪 TESTING MODE: Processing only ID 840761`);
-        // } else {
-        //   logger.info(`🧪 TESTING MODE: ID 840761 not found in current batch, skipping all requests`);
-        //   stats.skippedRequests += requests.length;
-        //   await new Promise(resolve => setTimeout(resolve, 5000));
-        //   continue;
-        // }
-        // stats.totalRequests += filteredRequests.length;
-        stats.totalRequests += requests.length;
-        let batchProcessedCount = 0;
-        let batchSkippedCount = 0;
-        let batchErrorCount = 0;
+      logger.info(`Fetched ${requests.length} requests from Garoon`);
+      
+      // TESTING: Filter to only process ID 840384 - REMOVE IN DEPLOYMENT
+      // const filteredRequests = requests.filter(req => req.id === "840761"); // 840384, 840761, 840762
+      // if (filteredRequests.length > 0) {
+      //   logger.info(`🧪 TESTING MODE: Processing only ID 840761`);
+      // } else {
+      //   logger.info(`🧪 TESTING MODE: ID 840761 not found in current batch, skipping all requests`);
+      //   stats.skippedRequests += requests.length;
+      //   continue;
+      // }
+      // stats.totalRequests += filteredRequests.length;
+      stats.totalRequests += requests.length;
 
-        for (const request of requests) {
-        // for (const request of filteredRequests) {
+      // Track batch-level statistics to detect if all requests are being skipped
+      let batchProcessedCount = 0;
+      let batchSkippedCount = 0;
+      let batchErrorCount = 0;
+
+      for (const request of requests) {
+      // for (const request of filteredRequests) {
         try {
           const requestId = request.id;
           const requestName = request.name;
@@ -201,22 +197,14 @@ export class ETL2Orchestrator extends BaseOrchestrator {
         }
       }
 
-        const totalBatchProcessed = this.logBatchCompletion(
-          WORKFLOW_ID, 
-          batchProcessedCount, 
-          batchSkippedCount, 
-          batchErrorCount, 
-          requests.length
-        );
+      logger.info(`[Workflow ${WORKFLOW_ID}] Batch completed`, {
+        ...stats,
+        batchProcessed: batchProcessedCount,
+        batchSkipped: batchSkippedCount,
+        batchErrors: batchErrorCount
+      });
 
-        // Handle pause logic using base class method
-        const shouldExit = await this.handlePauseLogic(totalBatchProcessed, requests.length, WORKFLOW_ID);
-        if (shouldExit) {
-          break;
-        }
-      }
-
-      this.logFinalCompletion(WORKFLOW_ID, stats);
+      logger.info(`[Workflow ${WORKFLOW_ID}] ETL run completed - All available requests processed`, stats);
 
     } catch (error) {
       logger.error('ETL execution failed', error);

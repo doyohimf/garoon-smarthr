@@ -14,10 +14,7 @@ export class GaroonService {
       let startDate, endDate;
 
       if (workflowId) {
-        // Get or create workflow starting point
         const startingPoint = await this.storageService.getOrCreateWorkflowStartingPoint(workflowId);
-        
-        // Calculate dynamic date range based on workflow starting point
         const dateRange = DateRangeCalculator.calculateDataRange(startingPoint.date_launched);
         
         startDate = dateRange.startDate;
@@ -34,10 +31,10 @@ export class GaroonService {
       } else {
         // Fallback to original logic if no workflowId provided
         const now = new Date();
-        const sixMonthsAgo = new Date();
-        sixMonthsAgo.setMonth(sixMonthsAgo.getMonth() - 1);
+        const sevenDaysAgo = new Date();
+        sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7);
 
-        startDate = sixMonthsAgo.toISOString();
+        startDate = sevenDaysAgo.toISOString();
         endDate = now.toISOString();
 
         logger.info('Using fallback date range (no workflowId provided)', {
@@ -135,15 +132,15 @@ export class GaroonService {
 
   async fetchRequestsWithDateRange(limit = 500, formId = null) {
     try {
-      // Set date range: current_date - 1 month to current_date
+      // Set date range: current_date - 7 days to current_date
       const now = new Date();
-      const oneMonthAgo = new Date();
-      oneMonthAgo.setMonth(oneMonthAgo.getMonth() - 1);
+      const sevenDaysAgo = new Date();
+      sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7);
 
-      const startDate = oneMonthAgo.toISOString();
+      const startDate = sevenDaysAgo.toISOString();
       const endDate = now.toISOString();
 
-      logger.info('Using revamped date range (current_date - 1 month to current_date)', {
+      logger.info('Using revamped date range (current_date - 7 days to current_date)', {
         startDate,
         endDate
       });

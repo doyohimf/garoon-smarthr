@@ -1,9 +1,23 @@
 node_modules/
 .env
-.env.yaml
-*.json
-!package.json
+data/
 *.log
 .DS_Store
-dist/
-coverage/
+*.jsonl
+
+# Keep error directory structure but ignore log files
+!data/errors/
+data/errors/*.log
+
+# Security: Service account keys and credentials
+data/keys/
+*.json.key
+*-key.json
+*service-account*.json
+*credentials*.json
+*.pem
+*.p12
+*.pfx
+
+# Security: Additional sensitive patterns
+.gcp/

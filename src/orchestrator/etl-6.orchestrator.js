@@ -5,7 +5,6 @@ import { ErrorLogger } from '../utils/error-logger.util.js';
 import { RequestRouter } from '../routers/request.router.js';
 import { ProcessorFactory } from '../processors/processor.factory.js';
 import { GaroonToBigQueryTransformer } from '../transformers/garoon-bq.transformer.js';
-import { PauseUtil } from '../utils/pause.util.js';
 
 const WORKFLOW_ID = 6;
 
@@ -30,21 +29,24 @@ export class ETL6Orchestrator {
     };
 
     try {
-      logger.info(`[Workflow ${WORKFLOW_ID}] Starting ETL - Running indefinitely`);
+      logger.info(`[Workflow ${WORKFLOW_ID}] Starting ETL - Processing all available requests`);
 
-      while (true) {
-        const requests = await this.garoonService.fetchRequests(500, 1236, 'workflow_6');
-        
-        if (!requests || requests.length === 0) {
-          logger.info('No requests found, waiting 30 seconds...');
-          await new Promise(resolve => setTimeout(resolve, 30000));
-          continue;
-        }
+      const requests = await this.garoonService.fetchRequests(500, 1236, 'workflow_6');
+      
+      if (!requests || requests.length === 0) {
+        logger.info('No requests found, ending ETL run.');
+        return;
+      }
 
-        logger.info(`Fetched ${requests.length} requests from Garoon`);
-        stats.totalRequests += requests.length;
+      logger.info(`Fetched ${requests.length} requests from Garoon`);
+      stats.totalRequests += requests.length;
 
-        for (const request of requests) {
+      // Track batch-level statistics to detect if all requests are being skipped
+      let batchProcessedCount = 0;
+      let batchSkippedCount = 0;
+      let batchErrorCount = 0;
+
+      for (const request of requests) {
         try {
           const requestId = request.id;
           const requestName = request.name;
@@ -56,6 +58,7 @@ export class ETL6Orchestrator {
           if (exists) {
             logger.debug(`⏭️  Skipping existing request: ${requestId}`);
             stats.skippedRequests++;
+            batchSkippedCount++;
             continue;
           }
 
@@ -78,9 +81,11 @@ export class ETL6Orchestrator {
               etl_extracted_date: new Date().toISOString()
             });
             stats.processedRequests++;
+            batchProcessedCount++;
           } else {
             logger.error(`❌ Failed to process request ${requestId}: ${processResult.error}`);
             stats.erroredRequests++;
+            batchErrorCount++;
           }
 
         } catch (error) {
@@ -98,12 +103,18 @@ export class ETL6Orchestrator {
           );
           
           stats.erroredRequests++;
+          batchErrorCount++;
         }
       }
 
-        logger.info(`[Workflow ${WORKFLOW_ID}] Batch completed`, stats);
-        await new Promise(resolve => setTimeout(resolve, 5000));
-      }
+      logger.info(`[Workflow ${WORKFLOW_ID}] Batch completed`, {
+        ...stats,
+        batchProcessed: batchProcessedCount,
+        batchSkipped: batchSkippedCount,
+        batchErrors: batchErrorCount
+      });
+
+      logger.info(`[Workflow ${WORKFLOW_ID}] ETL run completed - All available requests processed`, stats);
 
     } catch (error) {
       logger.error('ETL execution failed', error);

@@ -9,19 +9,24 @@ export class GaroonRepository {
   }
 
   async getRequests(params) {
+    const sevenDaysAgo = new Date();
+    sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7);
+    const startDate = sevenDaysAgo.toISOString().split('T')[0] + 'T00:00:00.000Z';
+    const endOfDay = new Date().toISOString().split('T')[0] + 'T23:59:59.999Z';
+    
     const urlParams = new URLSearchParams({
       orderBy: params.orderBy || 'createdAt desc',
       limit: params.limit || 1,
       offset: params.offset || 0,
-      status: 'COMPLETED',
-      rangeStartApprovedAt: '2025-11-01T00:00:00.000Z',//params.start || '',
-      rangeEndApprovedAt: params.end || '',
+      status: 'APPROVED',
+      rangeStartApprovedAt: startDate,
+      rangeEndApprovedAt: endOfDay,
       form: params.form_id
     });
 
     logger.debug('Garoon API request parameters', {
-      start: params.start,
-      end: params.end,
+      start: startDate,
+      end: endOfDay,
       form_id: params.form_id,
       limit: params.limit,
       urlParams: urlParams.toString()

@@ -9,6 +9,8 @@ export const env = {
   
   SMARTHR_BASE_URL: process.env.SMARTHR_BASE_URL || 'https://e10379b3050f91760fb5d051.daruma.space/api/v1',
   SMARTHR_ACCESS_TOKEN: process.env.SMARTHR_ACCESS_TOKEN,
+  SMARTHR_PROD_BASE_URL: process.env.SMARTHR_PROD_BASE_URL,
+  SMARTHR_PROD_ACCESS_TOKEN: process.env.SMARTHR_PROD_ACCESS_TOKEN,
   
   // GCP Configuration - environment-specific
   GCP_PROJECT_ID: process.env.GCP_PROJECT_ID,

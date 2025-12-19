@@ -96,12 +96,51 @@ LOG_LEVEL: "info"
 NODE_ENV: "production"
 ```
 
-### 2. Place Service Account Key
+### 2. Service Account Authentication
+
+**SECURITY WARNING: Never store service account keys inside the repository!**
+
+**Option A: Workload Identity (Recommended for GCP environments)**
 ```bash
-# Place the service account key file in data/keys/
-mkdir -p data/keys
-cp data-integration-key.json data/keys/data-integration-474311-01459c9d6f7b.json
+# Configure workload identity for Cloud Functions
+gcloud functions deploy garoon-smarthr-etl \
+  --runtime nodejs18 \
+  --trigger-http \
+  --service-account your-service-account@project.iam.gserviceaccount.com
 ```
+
+**Option B: Secret Manager (Recommended for key-based auth)**
+```bash
+# Store key in Secret Manager
+gcloud secrets create service-account-key --data-file=/path/to/external/key.json
+
+# Grant Cloud Function access to the secret
+gcloud secrets add-iam-policy-binding service-account-key \
+  --member=serviceAccount:your-cf-sa@project.iam.gserviceaccount.com \
+  --role=roles/secretmanager.secretAccessor
+```
+
+**Option C: External Key File (Use only if A/B are not possible)**
+```bash
+# Store key OUTSIDE the repository
+mkdir -p ~/.gcp-keys
+cp data-integration-key.json ~/.gcp-keys/data-integration-474311-01459c9d6f7b.json
+
+# Set environment variable to point to external location
+export GOOGLE_APPLICATION_CREDENTIALS="$HOME/.gcp-keys/data-integration-474311-01459c9d6f7b.json"
+
+# IMPORTANT: Rotate any keys that were previously stored in the repo
+# Generate new key and delete the old one from GCP Console
+```
+
+**⚠️  SECURITY ALERT: Service Account Key Detected**
+A service account key file exists in `data/keys/`. This poses a security risk if committed to version control.
+
+**IMMEDIATE ACTION REQUIRED:**
+1. Generate a new service account key in GCP Console
+2. Delete the old key from GCP to revoke access
+3. Use one of the secure authentication methods above (Workload Identity or Secret Manager)
+4. Remove the key file from the repository: `rm -rf data/keys/`
 
 ## Deployment Steps
 
@@ -109,8 +148,10 @@ cp data-integration-key.json data/keys/data-integration-474311-01459c9d6f7b.json
 ```bash
 # Ensure all required files are present
 ls -la src/
-ls -la data/keys/
 ls -la .env.yaml
+
+# Verify no service account keys are in the repository
+[ ! -d "data/keys" ] && echo "✅ No keys directory found (secure)" || echo "⚠️  Keys directory exists - remove it!"
 ```
 
 ### 2. Deploy Cloud Function

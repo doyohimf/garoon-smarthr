@@ -23,7 +23,7 @@ export class EmployeeAllowanceChangeProcessor {
 
     try {
       const allowanceData = await this.extractAllowanceData(garoonRequest);
-      console.log(allowanceData);
+      
       if (!allowanceData.employeeCode) {
         logger.warn('Missing required fields for allowance change: Employee Code is required.');
         return { success: false, error: 'Missing employee code' };

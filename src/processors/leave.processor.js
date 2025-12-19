@@ -69,7 +69,7 @@ export class EmployeeLeaveProcessor {
 
     const detailValue = items.find(field => field.field_name === garoonFields.details)?.field_value;
     const employeeCode = items.find(field => field.field_name === garoonFields.target_employee_code)?.field_value;
-    console.log(employeeCode);
+    
     const cfields = {};
     cfields[LEAVES_CUSTOM_FIELDS.details] = detailValue;
     cfields[LEAVES_CUSTOM_FIELDS.empStatus] = 'on_leave';
@@ -129,9 +129,6 @@ export class EmployeeLeaveProcessor {
   }
 
   findValue(items, fieldName) {
-    // const item = Object.values(items).find(i => i.name === fieldName);
-    // console.log(fieldName, item, item?.value || null);
-    // return item?.value || null;
     if (!items || typeof items !== 'object') {
         return null;
     }
