@@ -61,15 +61,6 @@ export function getProcessorTypeByFormId(formId) {
 }
 
 /**
- * Get processor type from request (legacy support)
- */
-export function getProcessorType(requestName) {
-  // This function is kept for backward compatibility
-  // In the new system, processor type is determined by form ID at ETL level
-  return null;
-}
-
-/**
  * Get description for processor type
  */
 export function getProcessorDescription(processorType) {
@@ -81,10 +72,3 @@ export function getProcessorDescription(processorType) {
   return 'Unknown';
 }
 
-/**
- * Check if request should be processed (legacy support)
- */
-export function shouldProcessRequest(requestName) {
-  // In the new system, all requests from specific forms are processed
-  return true;
-}

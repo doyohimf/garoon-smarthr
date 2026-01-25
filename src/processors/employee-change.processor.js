@@ -7,6 +7,9 @@ import { CHANGE_CUSTOM_FIELDS, CHANGE_KEY_MAP } from '../config/unified_change.c
 import { garoonFields } from '../config/garoon.config.js';
 import { SmartHRRepository } from '../repositories/smarthr.repository.js';
 import { smarthr_custom_fields } from '../config/smarthr.config.js';
+import { EmailService } from '../services/email.service.js';
+import { BigQueryService } from '../services/bigquery.service.js';
+import { DateUtil } from '../utils/date.util.js';
 
 export class UnifiedEmployeeChangeProcessor {
   constructor() {
@@ -14,6 +17,8 @@ export class UnifiedEmployeeChangeProcessor {
     this.smartHRService = new SmartHRExtendedService();
     this.smartHRBaseService = new SmartHRService();
     this.retryUtil = new RetryUtil();
+    this.emailService = new EmailService();
+    this.bigQueryService = new BigQueryService();
   }
 
   async process(garoonRequest) {
@@ -27,6 +32,102 @@ export class UnifiedEmployeeChangeProcessor {
         throw new Error('Missing employee code for change update.');
       }
 
+      // Extract effective date for date-based logic
+      const effectiveDate = this.extractEffectiveDate(garoonRequest);
+      
+      if (!effectiveDate) {
+        logger.warn('Missing effective date - processing immediately');
+      }
+
+      // Check if request already exists in empchanges_workflow
+      try {
+        const requestExists = await this.checkIfRequestExists(
+          garoonRequest.request.request_id,
+          garoonRequest.request.request_number
+        );
+        
+        if (requestExists) {
+          logger.warn(`⏭️  Skipping duplicate entry - request_id: ${garoonRequest.request.request_id}`);
+          return { success: true, transmitted: false, message: 'Duplicate request - skipped' };
+        }
+      } catch (dupCheckError) {
+        logger.error(`Error checking for duplicate request`, dupCheckError);
+        return { success: false, error: 'Failed to check for duplicates' };
+      }
+
+      // Check if effective date is today or recent
+      let isEffectiveDateRecent = true; // Default to immediate processing if no date
+      if (effectiveDate) {
+        try {
+          isEffectiveDateRecent = DateUtil.isWithinPastDays(effectiveDate, 0); // Only today
+          logger.info(`Effective date "${effectiveDate}" is today? ${isEffectiveDateRecent}`);
+        } catch (dateError) {
+          logger.error(`Error checking if date is today: ${effectiveDate}`, dateError);
+          isEffectiveDateRecent = true; // Default to immediate processing on error
+        }
+      }
+
+      // Store in empchanges_workflow table
+      if (effectiveDate) {
+        try {
+          await this.storeEmployeeChangeWorkflow(changeData, effectiveDate, garoonRequest);
+        } catch (dbError) {
+          logger.error(`Error storing to empchanges_workflow: ${changeData.emp_code}`, dbError);
+          return { success: false, error: 'Failed to store workflow data' };
+        }
+      }
+
+      // If effective date is today or missing (immediate), transmit to SmartHR
+      if (isEffectiveDateRecent) {
+        logger.info(`✅ Effective date is today/immediate - transmitting to SmartHR for ${changeData.emp_code}`);
+        
+        const result = await this.retryUtil.executeWithRetry(
+          async () => await this.smartHRService.updateEmployeeChanges(changeData),
+          3,
+          1000
+        );
+        
+        logger.info(`Employee change updated: ${changeData.emp_code}`);
+        return { success: true, result, transmitted: true };
+      } else {
+        logger.info(`⏸️  Effective date is future - data stored, awaiting processing date. Employee: ${changeData.emp_code}`);
+        return { success: true, transmitted: false, message: 'Data stored, awaiting processing date' };
+      }
+
+    } catch (error) {
+      logger.error('Employee change processing failed', error);
+      throw error;
+    }
+  }
+
+  async processDirectChange(changeData) {
+    logger.info(`Processing direct employee change for: ${changeData.emp_code}`);
+
+    try {
+      if (!changeData.emp_code) {
+        throw new Error('Missing employee code for change update.');
+      }
+
+      // Handle positions if specified
+      if (changeData.position) {
+        const positionId = await this.smartHRBaseService.findOrCreatePosition(changeData.position);
+        if (!positionId) {
+          logger.warn(`Position not found in SmartHR: ${changeData.position} for employee: ${changeData.emp_code}`);
+          await this.emailService.sendErrorNotification({
+            requestId: 'DIRECT_CHANGE',
+            requestName: 'Direct Employee Change Processing',
+            processorType: 'UnifiedEmployeeChangeProcessor',
+            errorMessage: `Position "${changeData.position}" does not exist in SmartHR. Please create the position before processing this change request.`,
+            additionalData: {
+              employee_code: changeData.emp_code,
+              position_requested: changeData.position,
+              action: 'SKIPPED - Position not found'
+            }
+          });
+          throw new Error(`Position "${changeData.position}" does not exist in SmartHR. Processing skipped.`);
+        }
+      }
+
       // Update employee changes in SmartHR
       const result = await this.retryUtil.executeWithRetry(
         async () => await this.smartHRService.updateEmployeeChanges(changeData),
@@ -34,12 +135,12 @@ export class UnifiedEmployeeChangeProcessor {
         1000
       );
       
-      logger.info(`Employee change updated: ${changeData.emp_code}`);
+      logger.info(`Direct employee change updated: ${changeData.emp_code}`);
       return { success: true, result };
 
     } catch (error) {
-      logger.error('Employee change processing failed', error);
-      throw error;
+      logger.error('Direct employee change processing failed', error);
+      return { success: false, error: error.message };
     }
   }
 
@@ -63,7 +164,21 @@ export class UnifiedEmployeeChangeProcessor {
       if (positionId) {
         positions = [positionId];
       } else {
-        position = parsedDetails.newPosition;
+        // Position does not exist - send email notification and skip processing
+        logger.warn(`Position not found in SmartHR: ${parsedDetails.newPosition} for employee: ${employee_code}`);
+        await this.emailService.sendErrorNotification({
+          requestId: request.request?.request_id || 'Unknown',
+          requestName: 'Employee Change Processing',
+          processorType: 'UnifiedEmployeeChangeProcessor',
+          errorMessage: `Position "${parsedDetails.newPosition}" does not exist in SmartHR. Please create the position before processing this change request.`,
+          additionalData: {
+            employee_code,
+            position_requested: parsedDetails.newPosition,
+            effective_date: effectiveDate,
+            action: 'SKIPPED - Position not found'
+          }
+        });
+        throw new Error(`Position "${parsedDetails.newPosition}" does not exist in SmartHR. Processing skipped.`);
       }
     }
     
@@ -211,5 +326,101 @@ export class UnifiedEmployeeChangeProcessor {
     
     // Return null if empty after cleaning, otherwise return the numeric string
     return cleanedValue ? cleanedValue : null;
+  }
+
+  extractEffectiveDate(garoonRequest) {
+    try {
+      const formFields = garoonRequest.formFields || [];
+      
+      // Look for effective date field
+      const effectiveDateField = formFields.find(field => 
+        field.field_name === CHANGE_KEY_MAP.effectivityDate ||
+        field.field_name === '発効日' ||
+        field.field_name === '異動適用日' ||
+        field.field_name === '適用開始日' ||
+        field.field_name.includes('発効') ||
+        field.field_name.includes('適用')
+      );
+      
+      if (effectiveDateField && effectiveDateField.field_value) {
+        return effectiveDateField.field_value;
+      }
+      
+      // Also check in parsed details
+      const details = formFields.find(field => field.field_name === garoonFields.details)?.field_value || '';
+      const parsedDetails = this.parseDetailsField(details.split(/\r?\n/).map(line => line.trim()).filter(Boolean));
+      
+      return parsedDetails.effectivityDate || parsedDetails.transferDate || null;
+    } catch (error) {
+      logger.warn('Failed to extract effective date:', error);
+      return null;
+    }
+  }
+
+  async checkIfRequestExists(requestId, requestNumber) {
+    try {
+      return await this.bigQueryService.checkGaroonRequestExists(requestId, requestNumber);
+    } catch (error) {
+      logger.error('Error checking if request exists:', error);
+      return false;
+    }
+  }
+
+  async storeEmployeeChangeWorkflow(changeData, effectiveDate, garoonRequest) {
+    try {
+      const empChangeRecord = {
+        employee_code: changeData.emp_code,
+        change_date: DateUtil.formatDateToBigQuery(effectiveDate),
+        type: this.getChangeType(changeData),
+        position: changeData.position || null,
+        classification: this.getClassification(changeData),
+        new_salary: this.getNewSalary(changeData),
+        position_allowance: this.getPositionAllowance(changeData),
+        for_process: 1, // Mark as pending for processing
+        custom_fields: JSON.stringify(changeData.custom_fields || []),
+        inserted_at: new Date().toISOString(),
+        transmitted_at: null,
+        request_id: garoonRequest.request.request_id,
+        request_number: garoonRequest.request.request_number
+      };
+
+      await this.bigQueryService.insertEmpChange(empChangeRecord);
+      logger.info(`Stored employee change workflow: ${changeData.emp_code} for ${effectiveDate}`);
+    } catch (error) {
+      logger.error('Failed to store employee change workflow:', error);
+      throw error;
+    }
+  }
+
+  getChangeType(changeData) {
+    // Extract change type from custom fields
+    const classificationField = changeData.custom_fields?.find(cf => 
+      cf.template_id === CHANGE_CUSTOM_FIELDS.classification
+    );
+    return classificationField?.value || 'CHANGE';
+  }
+
+  getClassification(changeData) {
+    // Extract classification from custom fields
+    const classificationField = changeData.custom_fields?.find(cf => 
+      cf.template_id === CHANGE_CUSTOM_FIELDS.classification
+    );
+    return classificationField?.value || null;
+  }
+
+  getNewSalary(changeData) {
+    // Extract new salary from custom fields
+    const salaryField = changeData.custom_fields?.find(cf => 
+      cf.template_id === CHANGE_CUSTOM_FIELDS.newSalary
+    );
+    return salaryField?.value ? parseFloat(salaryField.value) : null;
+  }
+
+  getPositionAllowance(changeData) {
+    // Extract position allowance from custom fields
+    const allowanceField = changeData.custom_fields?.find(cf => 
+      cf.template_id === smarthr_custom_fields.position_allowance
+    );
+    return allowanceField?.value ? parseFloat(allowanceField.value) : null;
   }
 }

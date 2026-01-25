@@ -16,5 +16,7 @@ export const SECONDMENT_KEY_MAP = {
 };
 
 export const SECONDMENT_CUSTOM_KEY_MAP = {
-    secondmentDetails: '出向の詳細'
+    secondmentDetails: '出向の詳細',
+    secondmentStatus: '出向状況',
+    secondmentEffectiveDate: '移転の効力発生日',
 };

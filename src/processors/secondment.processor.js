@@ -2,6 +2,7 @@ import { SmartHRExtendedService } from '../services/smarthr-extended.service.js'
 import { SmartHRRepository } from '../repositories/smarthr.repository.js';
 import { RetryUtil } from '../utils/retry.util.js';
 import { FormatterUtil } from '../utils/formatter.util.js';
+import { DateUtil } from '../utils/date.util.js';
 import { logger } from '../utils/logger.util.js';
 import { SECONDMENT_KEY_MAP, SECONDMENT_CUSTOM_KEY_MAP } from '../config/secondment.config.js';
 import { SmartHRService } from '../services/smarthr.service.js';
@@ -49,6 +50,11 @@ export class EmployeeSecondmentProcessor {
     const typeField = items.find(field => field.field_name === SECONDMENT_KEY_MAP.secondment_type)?.field_value;
     const employeeCode = items.find(field => field.field_name === SECONDMENT_KEY_MAP.employee_code)?.field_value;
     const transferTo = items.find(field => field.field_name === SECONDMENT_KEY_MAP.transferTo)?.field_value;
+    const secondment_date = items.find(field => field.field_name === SECONDMENT_KEY_MAP.secondment_date)?.field_value;
+    const secondment_period = items.find(field => field.field_name === SECONDMENT_KEY_MAP.secondment_period)?.field_value;
+
+    // Convert secondment_date to Gregorian calendar format if it's in Japanese era format
+    const gregorianSecondmentDate = DateUtil.parseJapaneseEraDate(secondment_date) || secondment_date;
 
     // Check department if already exist in SmartHR
     let department = transferTo;
@@ -82,6 +88,8 @@ export class EmployeeSecondmentProcessor {
 
     const cfields = {};
     cfields[SECONDMENT_CUSTOM_KEY_MAP.secondmentDetails] = detailValue;
+    cfields[SECONDMENT_CUSTOM_KEY_MAP.secondmentStatus] = secondment_period;
+    cfields[SECONDMENT_CUSTOM_KEY_MAP.secondmentEffectiveDate] = gregorianSecondmentDate;
 
     const customFieldTemplates = await this.smartHRRepository.getCustomFieldTemplates();
     const custom_fields = FormatterUtil.buildCustomFieldsArray(cfields, customFieldTemplates);

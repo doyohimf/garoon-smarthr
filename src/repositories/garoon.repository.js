@@ -14,10 +14,19 @@ export class GaroonRepository {
       limit: params.limit || 1,
       offset: params.offset || 0,
       status: 'COMPLETED',
-      rangeStartApprovedAt: params.start || '',
+      rangeStartApprovedAt: '2025-11-01T00:00:00.000Z',//params.start || '',
       rangeEndApprovedAt: params.end || '',
       form: params.form_id
     });
+
+    logger.debug('Garoon API request parameters', {
+      start: params.start,
+      end: params.end,
+      form_id: params.form_id,
+      limit: params.limit,
+      urlParams: urlParams.toString()
+    });
+
     try {
       const response = await fetch(`${this.apiEndpoint}?${urlParams.toString()}`, {
         method: 'GET',

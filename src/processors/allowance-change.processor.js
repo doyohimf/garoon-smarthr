@@ -6,12 +6,16 @@ import { SmartHRService } from '../services/smarthr.service.js';
 import { SmartHRRepository } from '../repositories/smarthr.repository.js';
 import { FormatterUtil } from '../utils/formatter.util.js';
 import { garoonFields } from '../config/garoon.config.js';
+import { AllowanceWorkflowRepository } from '../repositories/allowance-workflow.repository.js';
+import { DateUtil } from '../utils/date.util.js';
+import { smarthr_custom_fields } from '../config/smarthr.config.js';
 
 export class EmployeeAllowanceChangeProcessor {
   constructor() {
     this.smartHRRepository = new SmartHRRepository();
     this.smartHRExtendedService = new SmartHRExtendedService();
     this.retryUtil = new RetryUtil();
+    this.allowanceWorkflowRepository = new AllowanceWorkflowRepository();
   }
 
   async process(garoonRequest) {
@@ -19,23 +23,77 @@ export class EmployeeAllowanceChangeProcessor {
 
     try {
       const allowanceData = await this.extractAllowanceData(garoonRequest);
-
+      console.log(allowanceData);
       if (!allowanceData.employeeCode) {
         logger.warn('Missing required fields for allowance change: Employee Code is required.');
+        return { success: false, error: 'Missing employee code' };
+      }
+
+      if (!allowanceData.changeDate) {
+        logger.warn('Missing required fields for allowance change: Change Date is required.');
+        return { success: false, error: 'Missing change date' };
       }
 
       logger.info('🟢 ALLOWANCE_CHANGE.process - Extracted Data:', JSON.stringify({ allowanceData }, null, 2));
 
-      const result = await this.retryUtil.executeWithRetry(
-        async () => await this.smartHRExtendedService.updateEmployeeAllowances(allowanceData),
-        3,
-        1000
-      );
+      // Check if request already exists in allowances_workflow
+      try {
+        const requestExists = await this.allowanceWorkflowRepository.checkIfExists(
+          garoonRequest.request.request_id,
+          garoonRequest.request.request_number
+        );
+        
+        if (requestExists) {
+          logger.warn(`⏭️  Skipping duplicate entry - request_id: ${garoonRequest.request.request_id}, request_number: ${garoonRequest.request.request_number}`);
+          return { success: true, transmitted: false, message: 'Duplicate request - skipped' };
+        }
+      } catch (dupCheckError) {
+        logger.error(`Error checking for duplicate request`, dupCheckError);
+        return { success: false, error: 'Failed to check for duplicates' };
+      }
 
+      // Check if change_date is today or within the past 7 days
+      let isChangeDateRecent = false;
+      try {
+        isChangeDateRecent = DateUtil.isWithinPastDays(allowanceData.changeDate, 14);
+        logger.info(`Change date "${allowanceData.changeDate}" is within past 14 days? ${isChangeDateRecent}`);
+      } catch (dateError) {
+        logger.error(`Error checking if date is within past 14 days: ${allowanceData.changeDate}`, dateError);
+        isChangeDateRecent = false;
+      }
 
-      logger.info(`✓ Allowance change completed: ${allowanceData.employeeCode} - ${allowanceData.employeeName}`);
-      
-      return { success: true, result};
+      // Store in allowances_workflow table
+      try {
+        await this.allowanceWorkflowRepository.insertAllowanceWorkflow({
+          employee_code: allowanceData.employeeCode,
+          change_date: DateUtil.formatDateToBigQuery(allowanceData.changeDate),
+          type: allowanceData.allowanceName,
+          amount: allowanceData.changeAmount,
+          custom_fields: allowanceData.customFieldsArray,
+          request_id: garoonRequest.request.request_id,
+          request_number: garoonRequest.request.request_number
+        });
+      } catch (dbError) {
+        logger.error(`Error storing to allowances_workflow: ${allowanceData.employeeCode}`, dbError);
+        return { success: false, error: 'Failed to store workflow data' };
+      }
+      console.log(isChangeDateRecent);
+      // If change_date is today or within the past 7 days, transmit to SmartHR
+      if (isChangeDateRecent) {
+        logger.info(`✅ Change date is recent - transmitting to SmartHR for ${allowanceData.employeeCode}`);
+        
+        const result = await this.retryUtil.executeWithRetry(
+          async () => await this.smartHRExtendedService.updateEmployeeAllowances(allowanceData),
+          3,
+          1000
+        );
+
+        logger.info(`✓ Allowance change completed: ${allowanceData.employeeCode}`);
+        return { success: true, result, transmitted: true };
+      } else {
+        logger.info(`⏸️  Change date is not recent - data stored, awaiting processing date. Employee: ${allowanceData.employeeCode}`);
+        return { success: true, transmitted: false, message: 'Data stored, awaiting processing date' };
+      }
 
     } catch (error) {
       logger.error('Allowance change processing failed', error);
@@ -47,10 +105,12 @@ export class EmployeeAllowanceChangeProcessor {
     const items = request.formFields || {};
     const employeeCode = items.find(field => field.field_name === garoonFields.target_employee_code)?.field_value;
     const allowanceName = items.find(field => field.field_name === ALLOWANCE_KEY_MAP.allowanceName)?.field_value;
-    const changeDate = items.find(field => field.field_name === ALLOWANCE_KEY_MAP.changeDate)?.field_value;
+    const changeDate = items.find(field => field.field_name === ALLOWANCE_KEY_MAP.effectiveDate)?.field_value;
     const changeAmount = this.parseAmount(items.find(field => field.field_name === ALLOWANCE_KEY_MAP.changeAmount)?.field_value);
     const details = items.find(field => field.field_name === ALLOWANCE_KEY_MAP['details'])?.field_value || null;
     
+    logger.debug(`Extracted fields - employeeCode: ${employeeCode}, allowanceName: ${allowanceName}, changeDate: ${changeDate}, changeAmount: ${changeAmount}`);
+
     var position_allowance = '';
     var managers_allowance = '';
     var special_allowace = '';
@@ -77,8 +137,13 @@ export class EmployeeAllowanceChangeProcessor {
 
     const cfields = {};
     cfields[ALLOWANCE_CUSTOM_KEY_MAP.allowanceName] = allowanceName;
+    cfields[smarthr_custom_fields.position_allowance] = position_allowance;
+    cfields[smarthr_custom_fields.managers_allowance] = managers_allowance;
+    cfields[smarthr_custom_fields.special_allowance] = special_allowace;
+    cfields[smarthr_custom_fields.relocation_allowance] = relocation_allowance;
+    cfields[smarthr_custom_fields.vehicle_allowance] = vehicle_allowance;
     cfields[ALLOWANCE_CUSTOM_KEY_MAP.changeDate] = changeDate;
-    cfields[ALLOWANCE_CUSTOM_KEY_MAP.changeAmount] = changeAmount;
+    //cfields[ALLOWANCE_CUSTOM_KEY_MAP.changeAmount] = changeAmount;
     cfields[ALLOWANCE_CUSTOM_KEY_MAP.changeDetails] = details;
 
     const customFieldTemplates = await this.smartHRRepository.getCustomFieldTemplates();
@@ -86,11 +151,14 @@ export class EmployeeAllowanceChangeProcessor {
 
     if (!details) {
       logger.warn('No details field found in request');
-      return [];
     }
     
     return {
       employeeCode: employeeCode,
+      allowanceName: allowanceName,
+      changeDate: changeDate,
+      changeAmount: changeAmount,
+      details: details,
       customFieldsArray
     };
   }

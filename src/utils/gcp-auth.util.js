@@ -173,11 +173,4 @@ export function getGCPAuth() {
   return authInstance;
 }
 
-/**
- * Reset the GCP authentication instance (useful for testing)
- */
-export function resetGCPAuth() {
-  authInstance = null;
-}
-
 export default GCPAuth;

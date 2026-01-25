@@ -6,6 +6,7 @@ import { RequestRouter } from '../routers/request.router.js';
 import { ProcessorFactory } from '../processors/processor.factory.js';
 import { GaroonToBigQueryTransformer } from '../transformers/garoon-bq.transformer.js';
 import { PauseUtil } from '../utils/pause.util.js';
+import { AllowanceBatchProcessingService } from '../services/allowance-batch-processing.service.js';
 
 const WORKFLOW_ID = 5;
 
@@ -17,6 +18,7 @@ export class ETL5Orchestrator {
     this.requestRouter = new RequestRouter();
     this.processorFactory = new ProcessorFactory();
     this.garoonToBQTransformer = new GaroonToBigQueryTransformer();
+    this.allowanceBatchProcessingService = new AllowanceBatchProcessingService();
   }
 
   async execute() {
@@ -33,7 +35,28 @@ export class ETL5Orchestrator {
       logger.info(`[Workflow ${WORKFLOW_ID}] Starting ETL - Running indefinitely`);
 
       while (true) {
-        const requests = await this.garoonService.fetchRequests(500, 1044);
+        // PREPROCESSING STEP: Check for deferred allowances to process
+        try {
+          logger.info('═══════════════════════════════════════════════════════');
+          logger.info('🔄 [PREPROCESSING] Checking for deferred allowances...');
+          const preprocessingResult = await this.allowanceBatchProcessingService.processDeferredAllowances();
+          logger.info(`✨ [PREPROCESSING] Result: ${JSON.stringify(preprocessingResult)}`);
+          logger.info('═══════════════════════════════════════════════════════');
+        } catch (error) {
+          logger.error('[PREPROCESSING] Error during batch processing', error);
+          await this.errorLogger.logError(
+            {
+              error: {
+                message: error.message,
+                stack: error.stack
+              }
+            },
+            'PREPROCESSING_ERROR'
+          );
+        }
+
+        // Fetch new requests from Garoon with workflow-based date range
+        const requests = await this.garoonService.fetchRequests(500, 1044, 'workflow_5');
         
         if (!requests || requests.length === 0) {
           logger.info('No requests found, waiting 30 seconds...');
@@ -44,18 +67,19 @@ export class ETL5Orchestrator {
         logger.info(`Fetched ${requests.length} requests from Garoon`);
         
         // TESTING: Filter to only process ID 840067 - REMOVE IN DEPLOYMENT
-        const filteredRequests = requests.filter(req => req.id === "840067");
+        const filteredRequests = requests.filter(req => req.id === "840764"); //840764 840067
         if (filteredRequests.length > 0) {
-          logger.info(`🧪 TESTING MODE: Processing only ID 840067`);
+          logger.info(`🧪 TESTING MODE: Processing only ID 840764`);
         } else {
-          logger.info(`🧪 TESTING MODE: ID 840067 not found in current batch, skipping all requests`);
+          logger.info(`🧪 TESTING MODE: ID 840764 not found in current batch, skipping all requests`);
           stats.skippedRequests += requests.length;
           await new Promise(resolve => setTimeout(resolve, 5000));
           continue;
         }
         
+        //stats.totalRequests += requests.length;
         stats.totalRequests += filteredRequests.length;
-
+        //for (const request of requests) {
         for (const request of filteredRequests) {
         try {
           const requestId = request.id;
@@ -75,8 +99,6 @@ export class ETL5Orchestrator {
 
           logger.info(`✅ Found processable request: ${requestName} → ${processorType}`);
 
-          await PauseUtil.waitForEnter(`Workflow 5 match detected for: ${requestName}\nPress Enter to proceed with SmartHR transfer...`);
-          
           const processResult = await this.processRequest(request, processorType, requestId);
           
           if (processResult.success) {

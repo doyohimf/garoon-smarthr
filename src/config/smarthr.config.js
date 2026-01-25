@@ -19,6 +19,7 @@ export const smarthr_custom_fields = {
   wages_annual_salary: '年俸額',
   wages_monthly: '月額',
   wages_fixed_premium: '固定割増賃金',
+  wages_fixed_overtime_hours: '月間固定残業時間',
   commuting_allowance_monthly: '通勤手当(1ヶ月) ',
   allowance_1: '諸手当① (備考)',
   allowance_2: '諸手当②（諸手当①以外の手当）',
